@@ -108,7 +108,7 @@ export function printHelp(): void {
   process.stdout.write(
     `lanchat-ng — encrypted peer-to-peer LAN chat
 
-usage: lanchat-ng [options]
+usage: lchat [options]
 
   -n, --nick <name>        nickname (default: your username)
   -p, --port <port>        TCP listen port (default: 4040)

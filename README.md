@@ -35,7 +35,7 @@ npm install -g git+https://github.com/Vishnu-vashishth/lanchat-ng.git
 npm install -g git+ssh://git@github.com/Vishnu-vashishth/lanchat-ng.git
 ```
 
-That gives you a `lanchat-ng` command (and a shorter `lanchat` alias).
+That gives you an **`lchat`** command (plus a `lanchat-ng` alias).
 
 Prefer not to install? Run it one-off with npx:
 
@@ -49,24 +49,24 @@ Uninstall: `npm uninstall -g lanchat-ng`.
 ## Run
 
 ```bash
-lanchat-ng --nick alice
+lchat --nick alice
 ```
 
 Two people on the same LAN:
 
 ```bash
 # on alice's machine
-lanchat-ng --nick alice --port 4040
+lchat --nick alice --port 4040
 
 # on bob's machine — connect to alice once; the mesh gossips the rest
-lanchat-ng --nick bob --connect 192.168.1.23:4040
+lchat --nick bob --connect 192.168.1.23:4040
 ```
 
 Or let them find each other automatically (opt-in, broadcasts on the LAN):
 
 ```bash
-lanchat-ng --nick alice --discovery
-lanchat-ng --nick bob   --discovery
+lchat --nick alice --discovery
+lchat --nick bob   --discovery
 ```
 
 **On first contact, compare fingerprints** out-of-band (read them aloud / over
