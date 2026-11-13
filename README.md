@@ -85,7 +85,7 @@ another channel). After that the key is pinned and impersonation is rejected.
 /fp  /me               show your fingerprint
 /history on|off        toggle on-disk history (default: off, memory only)
 /burn                  wipe history (memory + disk) and clear the screen
-/hide  /panic          hide the screen  (also Ctrl+O — press again to resume)
+/hide  /panic          hide the screen — Ctrl+X, F2 or Ctrl+O (press again to resume)
 /quit                  exit
 ```
 
@@ -108,8 +108,8 @@ another channel). After that the key is pinned and impersonation is rejected.
 
 Built in: end-to-end encryption of all content and metadata, memory-only history,
 no network broadcast unless you ask, notifications that hide the body by default,
-and a `Ctrl+O` panic key that clears the screen (and scrollback) to hide the chat
-from someone glancing at your display.
+and a one-press panic key (`Ctrl+X`, or `F2`/`Ctrl+O`) that clears the screen (and
+scrollback) to hide the chat from someone glancing at your display.
 
 **Not** built in: anything that disguises the process as a *different* program to
 evade whoever administers the machine (e.g. masquerading as `nginx`/`postgres` in

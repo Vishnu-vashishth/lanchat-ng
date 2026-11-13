@@ -79,7 +79,7 @@ export class Tui {
     output.write(`${DIM}listening on tcp/${port}  ·  discovery ${opts.discovery ? 'ON' : 'off'}  ·  history ${opts.history ? 'ON (disk)' : 'off (memory only)'}${RESET}\n`);
     output.write(`${DIM}your nick:${RESET} ${this.node.nick}\n`);
     output.write(`${DIM}your fingerprint (share to verify first contact):${RESET}\n  ${GREEN}${group(fingerprint)}${RESET}\n`);
-    output.write(`${DIM}type /help for commands. Ctrl+O hides the screen.${RESET}\n\n`);
+    output.write(`${DIM}type /help for commands. Ctrl+X (or F2) hides the screen.${RESET}\n\n`);
     this.rl.setPrompt(this.prompt());
     this.rl.prompt();
   }
@@ -229,7 +229,7 @@ export class Tui {
       '/fp  /me              show your fingerprint',
       '/history on|off       toggle on-disk history (default off)',
       '/burn                 wipe history (memory + disk) and clear screen',
-      '/hide  /panic         hide the screen (also Ctrl+O)',
+      '/hide  /panic         hide the screen — Ctrl+X, F2 or Ctrl+O (again to resume)',
       '/quit                 exit',
     ];
     for (const l of lines) this.print(`${DIM}${l}${RESET}`);
@@ -241,7 +241,12 @@ export class Tui {
     if (!input.isTTY) return;
     readline.emitKeypressEvents(input, this.rl);
     input.on('keypress', (_s, key: { ctrl?: boolean; name?: string } | undefined) => {
-      if (key && key.ctrl && key.name === 'o') this.toggleHidden();
+      if (!key) return;
+      // Quick panic keys — all single, reliable, no readline conflict:
+      //   Ctrl+X (primary), F2 (one key), Ctrl+O (legacy). Press again to resume.
+      if ((key.ctrl && (key.name === 'x' || key.name === 'o')) || key.name === 'f2') {
+        this.toggleHidden();
+      }
     });
   }
 
