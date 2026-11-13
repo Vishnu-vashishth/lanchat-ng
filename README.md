@@ -22,31 +22,51 @@ issues that won't be fixed. The biggest ones we fix here:
 | Always broadcasts on the LAN | Discovery is **opt-in**; connect by address by default |
 | History on disk | **Memory-only by default**; disk history is opt-in; `/burn` wipes it |
 
-## Install & run
+## Install
+
+Requires **Node.js ≥ 20**. Installing compiles the CLI for you — there is **no
+separate build step**.
 
 ```bash
-npm install
-npm run build          # -> dist/
-node dist/index.js --nick alice
-# or during development:
-npm start -- --nick alice
+# over HTTPS (you'll be asked for GitHub creds since the repo is private)
+npm install -g git+https://github.com/Vishnu-vashishth/lanchat-ng.git
+
+# ...or over SSH if you have a GitHub SSH key
+npm install -g git+ssh://git@github.com/Vishnu-vashishth/lanchat-ng.git
+```
+
+That gives you a `lanchat-ng` command (and a shorter `lanchat` alias).
+
+Prefer not to install? Run it one-off with npx:
+
+```bash
+npx git+https://github.com/Vishnu-vashishth/lanchat-ng.git --nick alice
+```
+
+Update to the latest: re-run the same `npm install -g …` line.
+Uninstall: `npm uninstall -g lanchat-ng`.
+
+## Run
+
+```bash
+lanchat-ng --nick alice
 ```
 
 Two people on the same LAN:
 
 ```bash
 # on alice's machine
-node dist/index.js --nick alice --port 4040
+lanchat-ng --nick alice --port 4040
 
 # on bob's machine — connect to alice once; the mesh gossips the rest
-node dist/index.js --nick bob --connect 192.168.1.23:4040
+lanchat-ng --nick bob --connect 192.168.1.23:4040
 ```
 
 Or let them find each other automatically (opt-in, broadcasts on the LAN):
 
 ```bash
-node dist/index.js --nick alice --discovery
-node dist/index.js --nick bob   --discovery
+lanchat-ng --nick alice --discovery
+lanchat-ng --nick bob   --discovery
 ```
 
 **On first contact, compare fingerprints** out-of-band (read them aloud / over
@@ -106,9 +126,13 @@ Under `--data-dir` (default `~/.config/lanchat-ng`):
 
 See [PROTOCOL.md](./PROTOCOL.md) for the wire protocol.
 
-## Tests
+## Develop (from source)
 
 ```bash
-npm test        # crypto handshake, framing, tamper-rejection, 2-node e2e
+git clone git+ssh://git@github.com/Vishnu-vashishth/lanchat-ng.git
+cd lanchat-ng
+npm install                 # installs deps and builds dist/ (via "prepare")
+npm start -- --nick alice   # run from source without a global install
+npm test                    # crypto handshake, framing, tamper-rejection, 2-node e2e
 npm run typecheck
 ```

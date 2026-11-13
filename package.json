@@ -4,10 +4,17 @@
   "description": "Encrypted peer-to-peer LAN chat for internal team communication (new protocol, terminal UI).",
   "type": "module",
   "bin": {
-    "lanchat-ng": "dist/index.js"
+    "lanchat-ng": "dist/index.js",
+    "lanchat": "dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "PROTOCOL.md"
+  ],
   "scripts": {
     "build": "tsc",
+    "prepare": "npm run build",
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts",
     "test": "node --import tsx --test test/*.test.ts",
