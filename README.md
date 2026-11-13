@@ -131,7 +131,8 @@ See [PROTOCOL.md](./PROTOCOL.md) for the wire protocol.
 ```bash
 git clone git+ssh://git@github.com/Vishnu-vashishth/lanchat-ng.git
 cd lanchat-ng
-npm install                 # installs deps and builds dist/ (via "prepare")
+npm install                 # install deps
+npm run build               # compile to dist/  (or just use `npm start`, via tsx)
 npm start -- --nick alice   # run from source without a global install
 npm test                    # crypto handshake, framing, tamper-rejection, 2-node e2e
 npm run typecheck
