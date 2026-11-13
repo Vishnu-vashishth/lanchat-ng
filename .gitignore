@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.log
+# local runtime data / keys must never be committed
+.data/
+*.identity
+*.pem
