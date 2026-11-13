@@ -24,27 +24,28 @@ issues that won't be fixed. The biggest ones we fix here:
 
 ## Install
 
-Requires **Node.js ≥ 20**. Installing compiles the CLI for you — there is **no
-separate build step**.
+Requires **Node.js ≥ 20**. The CLI ships prebuilt — **no build step, no
+toolchain needed**.
 
 ```bash
-# over HTTPS (you'll be asked for GitHub creds since the repo is private)
-npm install -g git+https://github.com/Vishnu-vashishth/lanchat-ng.git
-
-# ...or over SSH if you have a GitHub SSH key
-npm install -g git+ssh://git@github.com/Vishnu-vashishth/lanchat-ng.git
+npm install -g https://github.com/Vishnu-vashishth/lanchat-ng/releases/download/v0.1.0/lanchat-ng-0.1.0.tgz
 ```
 
-That gives you an **`lchat`** command (plus a `lanchat-ng` alias).
-
-Prefer not to install? Run it one-off with npx:
+That gives you an **`lchat`** command (plus a `lanchat-ng` alias). Check it:
 
 ```bash
-npx git+https://github.com/Vishnu-vashishth/lanchat-ng.git --nick alice
+lchat --help
 ```
 
-Update to the latest: re-run the same `npm install -g …` line.
+Update: install the newest release URL from the
+[Releases page](https://github.com/Vishnu-vashishth/lanchat-ng/releases).
 Uninstall: `npm uninstall -g lanchat-ng`.
+
+> **Why the release tarball and not `npm i -g git+https://…`?** Some npm
+> versions mishandle git installs (they can link the package to a cache temp
+> dir that's then deleted, leaving a broken command). The release tarball
+> installs cleanly everywhere. To build from the repo instead, see
+> *Develop (from source)* below.
 
 ## Run
 
