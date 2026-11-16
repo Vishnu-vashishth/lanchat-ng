@@ -3,7 +3,7 @@ import { stdin as input, stdout as output } from 'node:process';
 import { spawn } from 'node:child_process';
 import { notify } from './notify.js';
 import { group } from '../util/base32.js';
-import { asciiEmoji } from '../util/emoji.js';
+import { asciiEmoji, COMBOS } from '../util/emoji.js';
 import { ansiSupported } from '../util/platform.js';
 const ANS = ansiSupported();
 export class Tui {
@@ -271,6 +271,21 @@ export class Tui {
                 this.sys('test notification sent');
                 break;
             }
+            case 'combos': {
+                const names = Object.keys(COMBOS).join(', ');
+                this.sys(`combos: ${names}`);
+                break;
+            }
+            case 'combo': {
+                const name = arg.trim();
+                if (!name || !COMBOS[name]) {
+                    this.sys('usage: /combo <name>  — try /combos to list');
+                    break;
+                }
+                this.node.sendChat(this.room, COMBOS[name]);
+                this.print(this.chatLine(this.room, this.node.nick, COMBOS[name], Date.now(), true));
+                break;
+            }
             case 'burn':
                 this.history.burn();
                 output.write(this.CLEAR_SCREEN);
@@ -313,6 +328,8 @@ export class Tui {
             '/update <room> <newpass> change a room password',
             '/selfupdate            update lanchat-ng from GitHub release',
             '/notify                send a test desktop notification',
+            '/combo <name>            send a kaomoji combo — /combos to list',
+            '/combos                  list all combo names',
             '/quit                 exit',
         ];
         for (const l of lines)
@@ -339,6 +356,8 @@ export class Tui {
         'update',
         'selfupdate',
         'notify',
+        'combo',
+        'combos',
         'quit',
         'exit',
     ];
