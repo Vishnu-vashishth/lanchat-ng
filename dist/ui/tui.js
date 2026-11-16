@@ -3,6 +3,7 @@ import { stdin as input, stdout as output } from 'node:process';
 import { spawn } from 'node:child_process';
 import { notify } from './notify.js';
 import { group } from '../util/base32.js';
+import { asciiEmoji } from '../util/emoji.js';
 import { ansiSupported } from '../util/platform.js';
 const ANS = ansiSupported();
 export class Tui {
@@ -72,7 +73,7 @@ export class Tui {
     chatLine(room, nick, body, ts, self) {
         const who = self ? `${this.GREEN}${nick}${this.RESET}` : `${this.YELLOW}${nick}${this.RESET}`;
         const where = room === this.room ? '' : `${this.DIM}#${room}${this.RESET} `;
-        return `${this.DIM}[${Tui.time(ts)}]${this.RESET} ${where}<${who}> ${body}`;
+        return `${this.DIM}[${Tui.time(ts)}]${this.RESET} ${where}<${who}> ${asciiEmoji(body)}`;
     }
     banner(fingerprint, port, opts) {
         output.write(`${this.CYAN}lanchat-ng${this.RESET} — encrypted LAN chat\n`);

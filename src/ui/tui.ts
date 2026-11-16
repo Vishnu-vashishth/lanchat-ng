@@ -7,6 +7,7 @@ import type { ChatMsg, ReceiptMsg } from '../protocol/messages.js';
 import type { History } from '../core/history.js';
 import { notify } from './notify.js';
 import { group } from '../util/base32.js';
+import { asciiEmoji } from '../util/emoji.js';
 import { ansiSupported } from '../util/platform.js';
 
 const ANS = ansiSupported();
@@ -89,7 +90,7 @@ export class Tui {
   private chatLine(room: string, nick: string, body: string, ts: number, self: boolean): string {
     const who = self ? `${this.GREEN}${nick}${this.RESET}` : `${this.YELLOW}${nick}${this.RESET}`;
     const where = room === this.room ? '' : `${this.DIM}#${room}${this.RESET} `;
-    return `${this.DIM}[${Tui.time(ts)}]${this.RESET} ${where}<${who}> ${body}`;
+    return `${this.DIM}[${Tui.time(ts)}]${this.RESET} ${where}<${who}> ${asciiEmoji(body)}`;
   }
 
   banner(fingerprint: string, port: number, opts: { discovery: boolean; history: boolean }): void {
