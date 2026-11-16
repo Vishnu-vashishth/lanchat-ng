@@ -38,6 +38,7 @@ export class Tui {
         this.RESET = c('\x1b[0m');
         this.CLEAR_SCREEN = this.colorEnabled ? '\x1b[2J\x1b[3J\x1b[H' : '\n'.repeat(40);
         this.rl = readline.createInterface({ input, output, prompt: this.prompt() });
+        this.setupCompletion();
         this.setupKeys();
         this.rl.on('line', (raw) => this.onLine(raw));
         this.rl.on('SIGINT', () => {
@@ -111,6 +112,17 @@ export class Tui {
             if (on && room === this.room)
                 this.sys(`${peer.nick} is typing…`);
         });
+        this.node.on('mention', (peer, from, body) => {
+            const short = body.length > 40 ? body.slice(0, 40) + '…' : body;
+            this.sys(`${this.YELLOW}@mention${this.RESET} from ${peer.nick}: ${short}`);
+            if (!this.opts.quiet && !this.hidden) {
+                const now = Date.now();
+                if (now - this.lastNotify > this.NOTIFY_THROTTLE_MS) {
+                    this.lastNotify = now;
+                    notify(`Mention from ${peer.nick}`, short, { revealBody: this.opts.notifyBody });
+                }
+            }
+        });
         this.node.on('receipt', (peer, msg) => {
             if (msg.kind === 'read')
                 this.sys(`${this.DIM}${peer.nick} read #${msg.room}${this.RESET}`);
@@ -128,9 +140,9 @@ export class Tui {
             this.command(line);
         }
         else {
-            this.startTyping();
             const msg = this.node.sendChat(this.room, line);
             this.print(this.chatLine(this.room, this.node.nick, msg.body, msg.ts, true));
+            this.stopTyping();
         }
         this.rl.prompt();
     }
@@ -253,6 +265,11 @@ export class Tui {
                 }
                 break;
             }
+            case 'notify': {
+                notify('Test notification', 'lanchat-ng is working', { revealBody: true });
+                this.sys('test notification sent');
+                break;
+            }
             case 'burn':
                 this.history.burn();
                 output.write(this.CLEAR_SCREEN);
@@ -294,12 +311,45 @@ export class Tui {
             '/hide  /panic         hide the screen — Ctrl+X, F2 or Ctrl+O (again to resume)',
             '/update <room> <newpass> change a room password',
             '/selfupdate            update lanchat-ng from GitHub release',
+            '/notify                send a test desktop notification',
             '/quit                 exit',
         ];
         for (const l of lines)
             this.print(`${this.DIM}${l}${this.RESET}`);
     }
     // ---- panic / hide-view (screen privacy only) ----
+    commands = [
+        'help',
+        'nick',
+        'join',
+        'room',
+        'leave',
+        'rooms',
+        'peers',
+        'names',
+        'connect',
+        'fp',
+        'me',
+        'history',
+        'color',
+        'burn',
+        'hide',
+        'panic',
+        'update',
+        'selfupdate',
+        'notify',
+        'quit',
+        'exit',
+    ];
+    setupCompletion() {
+        this.rl.setCompleter((line) => {
+            if (!line.startsWith('/'))
+                return [[], line];
+            const token = line.slice(1);
+            const hits = this.commands.filter((c) => c.startsWith(token));
+            return [hits.map((c) => `/${c}`), `/${token}`];
+        });
+    }
     setupKeys() {
         if (!input.isTTY)
             return;
@@ -311,6 +361,11 @@ export class Tui {
             //   Ctrl+X (primary), F2 (one key), Ctrl+O (legacy). Press again to resume.
             if ((key.ctrl && (key.name === 'x' || key.name === 'o')) || key.name === 'f2') {
                 this.toggleHidden();
+                return;
+            }
+            // Live typing indicator while the user types in the chat line.
+            if (!key.ctrl && key.name && key.name.length === 1 && key.name !== 'tab') {
+                this.startTyping();
             }
         });
     }

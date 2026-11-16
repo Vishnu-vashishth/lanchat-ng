@@ -176,6 +176,7 @@ export class ChatNode extends EventEmitter {
                     ts: msg.ts,
                 });
                 this.emit('chat', peer, msg);
+                this.emitMentions(peer, msg.body);
                 peer.send({ t: 'receipt', room: msg.room, ids: [msg.id], kind: 'delivered' });
                 break;
             }
@@ -202,6 +203,27 @@ export class ChatNode extends EventEmitter {
                 break;
             default:
                 break;
+        }
+    }
+    getPeerByNick(nick) {
+        for (const p of this.peers.values()) {
+            if (p.nick && p.nick.toLowerCase() === nick.toLowerCase())
+                return p;
+        }
+        return undefined;
+    }
+    emitMentions(from, body) {
+        const mentionRe = /@([A-Za-z0-9_-]{1,32})/g;
+        let match;
+        const mentioned = new Set();
+        while ((match = mentionRe.exec(body)) !== null) {
+            const nick = match[1];
+            if (!nick || mentioned.has(nick))
+                continue;
+            mentioned.add(nick);
+            const peer = this.getPeerByNick(nick);
+            if (peer)
+                this.emit('mention', peer, from, body);
         }
     }
     // ---- actions driven by the UI ----
