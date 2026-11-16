@@ -1,46 +1,48 @@
-// ASCII-based emoticons (classic text smileys) rendered as small ASCII faces.
-// Kept intentionally retro — no Unicode/modern emoji.
+// Kaomoji-style ASCII emoticons (classic text faces). No modern Unicode emoji
+// — these render as plain text so they display identically on every terminal.
+// Longest keys are matched first so ':)' doesn't steal from ':-)'.
 const ASCII_EMOJI: Record<string, string> = {
-  // happiness
-  ':)': '^.^',
-  ':-)': '^.^',
-  ':]': '^.^',
-  '=)': '^.^',
-  ':D': '^D^',
-  ':-D': '^D^',
-  '=D': '^D^',
-  ':p': '^P^',
-  ':-p': '^P^',
-  ':P': '^P^',
-  ':-P': '^P^',
-  '=P': '^P^',
-  // sadness / shock
-  ':(': 'T_T',
-  ':-(': 'T_T',
-  ':[)': 'T_T',
-  '=(': 'T_T',
-  ':O': 'o_O',
-  ':-O': 'o_O',
-  ':o': 'o_O',
-  ':-o': 'o_O',
-  // wink / love / kiss / meh
-  ';)': '^;^',
-  ';-)': '^;^',
-  ':*': '^:*',
-  ':-*': '^:*',
-  ':|': '-_-',
-  ':-|': '-_-',
-  // tongue / confused
-  ':S': 'o_O',
-  ':-S': 'o_O',
-  ':s': 'o_O',
-  ':-s': 'o_O',
+  // happy / excited
+  ':)': '( ツ )',
+  ':-)': '( ツ )',
+  ':]': '( ツ )',
+  '=)': '( ツ )',
+  ':D': '(╯°□°)╯︵ ┻━┻',
+  ':-D': '(╯°□°)╯︵ ┻━┻',
+  '=D': '(╯°□°)╯︵ ┻━┻',
+  ':p': '(｡◕‿◕｡)',
+  ':-p': '(｡◕‿◕｡)',
+  ':P': '(｡◕‿◕｡)',
+  ':-P': '(｡◕‿◕｡)',
+  '=P': '(｡◕‿◕｡)',
+  // sad / cry
+  ':(': '(╥﹏╥)',
+  ':-(': '(╥﹏╥)',
+  '=[)': '(╥﹏╥)',
+  '=(': '(╥﹏╥)',
+  // shock / surprise
+  ':O': '(⊙_⊙)',
+  ':-O': '(⊙_⊙)',
+  ':o': '(⊙_⊙)',
+  ':-o': '(⊙_⊙)',
+  // wink
+  ';)': '(¬‿¬)',
+  ';-)': '(¬‿¬)',
+  // kiss / love
+  ':*': '(｡♥‿♥｡)',
+  // neutral / meh
+  ':|': '(¬_¬)',
+  ':-|': '(¬_¬)',
+  // confused
+  ':S': '(¬_¬)',
+  ':-S': '(¬_¬)',
+  ':s': '(¬_¬)',
+  ':-s': '(¬_¬)',
 };
 
 const ASCII_EMOJI_KEYS = Object.keys(ASCII_EMOJI).sort((a, b) => b.length - a.length);
 
-// Replace ASCII emoticons with small ASCII faces. Longest keys first so
-// ':-)' doesn't get partially matched by ':)'.
+// Replace ASCII emoticons with kaomoji faces. Longest keys first.
 export function asciiEmoji(body: string): string {
   let out = body;
   for (const key of ASCII_EMOJI_KEYS) {
