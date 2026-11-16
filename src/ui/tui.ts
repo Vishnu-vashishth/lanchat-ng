@@ -30,6 +30,8 @@ export class Tui {
   private readonly RESET: string;
   private readonly CLEAR_SCREEN: string;
   private typingTimer: NodeJS.Timeout | undefined;
+  private lastNotify = 0;
+  private readonly NOTIFY_THROTTLE_MS = 5000;
 
   constructor(
     private readonly node: ChatNode,
@@ -116,7 +118,11 @@ export class Tui {
       this.print(this.chatLine(msg.room, peer.nick, msg.body, msg.ts, false));
       const focused = msg.room === this.room && !this.hidden;
       if (!this.opts.quiet && !this.hidden) {
-        notify('New message', '', { revealBody: this.opts.notifyBody });
+        const now = Date.now();
+        if (now - this.lastNotify > this.NOTIFY_THROTTLE_MS) {
+          this.lastNotify = now;
+          notify('New message', '', { revealBody: this.opts.notifyBody });
+        }
       }
       if (focused) this.node.sendRead(msg.room, [msg.id]); // we're looking at it
     });

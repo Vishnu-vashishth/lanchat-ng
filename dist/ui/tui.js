@@ -22,6 +22,8 @@ export class Tui {
     RESET;
     CLEAR_SCREEN;
     typingTimer;
+    lastNotify = 0;
+    NOTIFY_THROTTLE_MS = 5000;
     constructor(node, opts, history, historyPath) {
         this.node = node;
         this.opts = opts;
@@ -96,7 +98,11 @@ export class Tui {
             this.print(this.chatLine(msg.room, peer.nick, msg.body, msg.ts, false));
             const focused = msg.room === this.room && !this.hidden;
             if (!this.opts.quiet && !this.hidden) {
-                notify('New message', '', { revealBody: this.opts.notifyBody });
+                const now = Date.now();
+                if (now - this.lastNotify > this.NOTIFY_THROTTLE_MS) {
+                    this.lastNotify = now;
+                    notify('New message', '', { revealBody: this.opts.notifyBody });
+                }
             }
             if (focused)
                 this.node.sendRead(msg.room, [msg.id]); // we're looking at it
