@@ -5,22 +5,24 @@ import os from 'node:os';
 // app name, no nicknames in the title). The message body is kept out unless
 // --notify-body is set; failures are swallowed — a missing notifier must never
 // crash the chat.
-export function notify(_title, body) {
+export function notify(title, body, opts) {
     try {
         const platform = os.platform();
         const appName = genericAppName(platform);
         const dispTitle = genericTitle(platform);
+        // Never reveal message content in a notification unless explicitly asked.
+        const dispBody = opts?.revealBody ? body : '';
         if (platform === 'linux') {
-            spawn('notify-send', ['--app-name=' + appName, dispTitle, body], { stdio: 'ignore' }).on('error', () => { });
+            spawn('notify-send', ['--app-name=' + appName, dispTitle, dispBody], { stdio: 'ignore' }).on('error', () => { });
         }
         else if (platform === 'darwin') {
-            const script = `display notification ${q(body)} with title ${q(dispTitle)}`;
+            const script = `display notification ${q(dispBody)} with title ${q(dispTitle)}`;
             spawn('osascript', ['-e', script], { stdio: 'ignore' }).on('error', () => { });
         }
         else if (platform === 'win32') {
             const cmd = `[void][System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms');` +
                 `$n=New-Object System.Windows.Forms.NotifyIcon;$n.Icon=[System.Drawing.SystemIcons]::Information;` +
-                `$n.Visible=$true;$n.ShowBalloonTip(5000, ${q(dispTitle)}, ${q(body)}, 'Info')`;
+                `$n.Visible=$true;$n.ShowBalloonTip(5000, ${q(dispTitle)}, ${q(dispBody)}, 'Info')`;
             spawn('powershell', ['-NoProfile', '-Command', cmd], { stdio: 'ignore' }).on('error', () => { });
         }
     }

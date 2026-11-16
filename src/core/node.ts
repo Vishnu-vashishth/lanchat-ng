@@ -21,6 +21,8 @@ export interface NodeOptions {
   discovery: boolean;
   discoveryPort: number;
   autoConnect: boolean;
+  room?: string;      // room to auto-join after connecting
+  pass?: string;      // password for the auto-join room
 }
 
 // The node: owns the TCP server, the set of peers, discovery and gossip, and
@@ -31,11 +33,20 @@ export class ChatNode extends EventEmitter {
   private readonly peers = new Map<string, Peer>(); // fp -> peer
   private readonly dialing = new Set<string>(); // "host:port" currently dialing
   readonly rooms = new Set<string>([DEFAULT_ROOM]);
+  readonly roomPasswords = new Map<string, string>(); // room -> required password
   nick: string;
+  private readonly autoJoinRoom?: string;
+  private readonly autoJoinPass?: string;
 
   constructor(private readonly o: NodeOptions) {
     super();
     this.nick = o.nick;
+    this.autoJoinRoom = o.room;
+    this.autoJoinPass = o.pass;
+    if (o.room) {
+      this.rooms.add(o.room);
+      if (o.pass) this.roomPasswords.set(o.room, o.pass);
+    }
   }
 
   get identity(): Identity {
@@ -119,6 +130,9 @@ export class ChatNode extends EventEmitter {
 
     peer.send({ t: 'hello', nick: this.nick, rooms: [...this.rooms], port: this.o.port, ver: PROTOCOL_VERSION });
     peer.send({ t: 'peers', peers: this.gossipList(fp) });
+    if (this.autoJoinRoom) {
+      peer.send({ t: 'join', room: this.autoJoinRoom, password: this.autoJoinPass });
+    }
     void this.pump(peer);
   }
 
@@ -179,10 +193,13 @@ export class ChatNode extends EventEmitter {
       case 'receipt':
         this.emit('receipt', peer, msg);
         break;
-      case 'join':
+      case 'join': {
+        const required = this.roomPasswords.get(msg.room);
+        if (required !== undefined && msg.password !== required) break; // wrong password
         peer.rooms.add(msg.room);
         this.emit('peer-room', peer, msg.room, true);
         break;
+      }
       case 'leave':
         peer.rooms.delete(msg.room);
         this.emit('peer-room', peer, msg.room, false);
@@ -213,9 +230,15 @@ export class ChatNode extends EventEmitter {
     for (const p of this.peers.values()) if (p.rooms.has(room)) p.send({ t: 'receipt', room, ids, kind: 'read' });
   }
 
-  join(room: string): void {
+  join(room: string, password?: string): void {
     this.rooms.add(room);
-    for (const p of this.peers.values()) p.send({ t: 'join', room });
+    if (password) this.roomPasswords.set(room, password);
+    for (const p of this.peers.values()) p.send({ t: 'join', room, password });
+  }
+
+  setRoomPassword(room: string, password: string): void {
+    this.roomPasswords.set(room, password);
+    for (const p of this.peers.values()) p.send({ t: 'join', room, password });
   }
 
   leave(room: string): void {

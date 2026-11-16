@@ -20,6 +20,8 @@ async function main() {
         discovery: opts.discovery,
         discoveryPort: opts.discoveryPort,
         autoConnect: opts.autoConnect,
+        room: opts.room,
+        pass: opts.pass,
     });
     try {
         await node.start();
@@ -28,7 +30,7 @@ async function main() {
         process.stderr.write(`failed to start on port ${opts.port}: ${String(err)}\n`);
         process.exit(1);
     }
-    const tui = new Tui(node, { quiet: opts.quiet, notifyBody: opts.notifyBody }, history, p.history);
+    const tui = new Tui(node, { quiet: opts.quiet, notifyBody: opts.notifyBody, color: opts.color }, history, p.history);
     tui.banner(identity.fingerprint, opts.port, { discovery: opts.discovery, history: opts.history });
     for (const c of opts.connect)
         void node.connect(c.host, c.port);

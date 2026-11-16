@@ -36,8 +36,11 @@ export function parseArgs(argv) {
         history: false,
         quiet: false,
         notifyBody: false,
+        color: true,
         connect: [],
         dataDir: defaultDataDir(),
+        room: undefined,
+        pass: undefined,
     };
     for (let i = 0; i < argv.length; i++) {
         const a = argv[i];
@@ -58,6 +61,19 @@ export function parseArgs(argv) {
                     o.connect.push(parseEndpoint(v, o.port));
                 break;
             }
+            case '--room':
+                o.room = next() ?? o.room;
+                break;
+            case '--pass':
+            case '--password':
+                o.pass = next() ?? o.pass;
+                break;
+            case '--color':
+                o.color = true;
+                break;
+            case '--no-color':
+                o.color = false;
+                break;
             case '--discovery':
                 o.discovery = true;
                 break;
@@ -101,14 +117,18 @@ usage: lchat [options]
 
   -n, --nick <name>        nickname (default: your username)
   -p, --port <port>        TCP listen port (default: 4040)
-  -c, --connect <host[:port]>  connect to a peer at startup (repeatable)
-      --discovery          enable UDP LAN auto-discovery (default: off)
+      -c, --connect <host[:port]>  connect to a peer at startup (repeatable)
+      --room <name>                room to auto-join after connecting
+      --pass <pass>                password for the auto-join room
+      --discovery                  enable UDP LAN auto-discovery (default: off)
       --discovery-port <p> discovery UDP port (default: 4041)
       --no-autoconnect     do not auto-dial peers learned via gossip/discovery
       --history            persist message history to disk (default: memory only)
   -q, --quiet              disable desktop notifications
       --notify-body        include message text in notifications (default: hidden)
       --data-dir <path>    config/identity directory (default: ~/.config/lanchat-ng)
+      --color              use ANSI colors (default: on)
+      --no-color           disable ANSI colors
   -h, --help               show this help
 `);
 }

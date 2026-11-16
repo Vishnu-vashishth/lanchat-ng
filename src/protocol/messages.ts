@@ -37,6 +37,7 @@ export interface ReceiptMsg {
 export interface JoinMsg {
   t: 'join';
   room: string;
+  password?: string; // room password, required if the room is protected
 }
 export interface LeaveMsg {
   t: 'leave';

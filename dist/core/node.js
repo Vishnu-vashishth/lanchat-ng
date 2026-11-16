@@ -16,11 +16,21 @@ export class ChatNode extends EventEmitter {
     peers = new Map(); // fp -> peer
     dialing = new Set(); // "host:port" currently dialing
     rooms = new Set([DEFAULT_ROOM]);
+    roomPasswords = new Map(); // room -> required password
     nick;
+    autoJoinRoom;
+    autoJoinPass;
     constructor(o) {
         super();
         this.o = o;
         this.nick = o.nick;
+        this.autoJoinRoom = o.room;
+        this.autoJoinPass = o.pass;
+        if (o.room) {
+            this.rooms.add(o.room);
+            if (o.pass)
+                this.roomPasswords.set(o.room, o.pass);
+        }
     }
     get identity() {
         return this.o.identity;
@@ -98,6 +108,9 @@ export class ChatNode extends EventEmitter {
         this.peers.set(fp, peer);
         peer.send({ t: 'hello', nick: this.nick, rooms: [...this.rooms], port: this.o.port, ver: PROTOCOL_VERSION });
         peer.send({ t: 'peers', peers: this.gossipList(fp) });
+        if (this.autoJoinRoom) {
+            peer.send({ t: 'join', room: this.autoJoinRoom, password: this.autoJoinPass });
+        }
         void this.pump(peer);
     }
     gossipList(exceptFp) {
@@ -161,10 +174,14 @@ export class ChatNode extends EventEmitter {
             case 'receipt':
                 this.emit('receipt', peer, msg);
                 break;
-            case 'join':
+            case 'join': {
+                const required = this.roomPasswords.get(msg.room);
+                if (required !== undefined && msg.password !== required)
+                    break; // wrong password
                 peer.rooms.add(msg.room);
                 this.emit('peer-room', peer, msg.room, true);
                 break;
+            }
             case 'leave':
                 peer.rooms.delete(msg.room);
                 this.emit('peer-room', peer, msg.room, false);
@@ -197,10 +214,17 @@ export class ChatNode extends EventEmitter {
             if (p.rooms.has(room))
                 p.send({ t: 'receipt', room, ids, kind: 'read' });
     }
-    join(room) {
+    join(room, password) {
         this.rooms.add(room);
+        if (password)
+            this.roomPasswords.set(room, password);
         for (const p of this.peers.values())
-            p.send({ t: 'join', room });
+            p.send({ t: 'join', room, password });
+    }
+    setRoomPassword(room, password) {
+        this.roomPasswords.set(room, password);
+        for (const p of this.peers.values())
+            p.send({ t: 'join', room, password });
     }
     leave(room) {
         this.rooms.delete(room);
