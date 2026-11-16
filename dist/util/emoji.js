@@ -1,25 +1,25 @@
-// Kaomoji-style ASCII emoticons (classic text faces). No modern Unicode emoji
-// — these render as plain text so they display identically on every terminal.
-// Longest keys are matched first so ':)' doesn't steal from ':-)'.
+// Kaomoji-style text faces (emojicombos style). Plain text characters only —
+// no modern colorful emoji like 😀 — so they render identically on every
+// terminal. Longest keys are matched first so ':)' doesn't steal from ':-)'.
 const ASCII_EMOJI = {
-    // happy / excited
-    ':)': '( ツ )',
-    ':-)': '( ツ )',
-    ':]': '( ツ )',
-    '=)': '( ツ )',
-    ':D': '(╯°□°)╯︵ ┻━┻',
-    ':-D': '(╯°□°)╯︵ ┻━┻',
-    '=D': '(╯°□°)╯︵ ┻━┻',
-    ':p': '(｡◕‿◕｡)',
-    ':-p': '(｡◕‿◕｡)',
-    ':P': '(｡◕‿◕｡)',
-    ':-P': '(｡◕‿◕｡)',
-    '=P': '(｡◕‿◕｡)',
+    // happy / cute
+    ':)': '(˶˃ ᵕ ˂˶)',
+    ':-)': '(˶˃ ᵕ ˂˶)',
+    ':]': '(˶˃ ᵕ ˂˶)',
+    '=)': '(˶˃ ᵕ ˂˶)',
+    ':D': '(๑˃ᴗ˂)ﻭ',
+    ':-D': '(๑˃ᴗ˂)ﻭ',
+    '=D': '(๑˃ᴗ˂)ﻭ',
+    ':p': '(っ˘ω˘ς)',
+    ':-p': '(っ˘ω˘ς)',
+    ':P': '(っ˘ω˘ς)',
+    ':-P': '(っ˘ω˘ς)',
+    '=P': '(っ˘ω˘ς)',
     // sad / cry
-    ':(': '(╥﹏╥)',
-    ':-(': '(╥﹏╥)',
-    '=[)': '(╥﹏╥)',
-    '=(': '(╥﹏╥)',
+    ':(': '(っ˘ڡ˘ς)',
+    ':-(': '(っ˘ڡ˘ς)',
+    '=[)': '(っ˘ڡ˘ς)',
+    '=(': '(っ˘ڡ˘ς)',
     // shock / surprise
     ':O': '(⊙_⊙)',
     ':-O': '(⊙_⊙)',
@@ -38,6 +38,11 @@ const ASCII_EMOJI = {
     ':-S': '(¬_¬)',
     ':s': '(¬_¬)',
     ':-s': '(¬_¬)',
+    // extra combos
+    ':love:': '(｡♥‿♥｡)',
+    ':hug:': '(っ˘з(˘⌣˘c)',
+    ':pout:': '(˶‾᷄ືང ᵕ ˷᷅ືང˶)',
+    ':angry:': '(｡•́︿•̀｡)',
 };
 const ASCII_EMOJI_KEYS = Object.keys(ASCII_EMOJI).sort((a, b) => b.length - a.length);
 // Replace ASCII emoticons with kaomoji faces. Longest keys first.
