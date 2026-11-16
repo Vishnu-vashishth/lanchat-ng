@@ -45,6 +45,7 @@ function parseEndpoint(value: string, defaultPort: number): { host: string; port
 }
 
 export function parseArgs(argv: string[]): Options {
+  let discoveryOptedOut = false;
   const o: Options = {
     nick: os.userInfo().username || 'anon',
     port: 4040,
@@ -94,6 +95,10 @@ export function parseArgs(argv: string[]): Options {
       case '--discovery':
         o.discovery = true;
         break;
+      case '--no-discovery':
+        o.discovery = false;
+        discoveryOptedOut = true;
+        break;
       case '--discovery-port':
         o.discoveryPort = Number(next()) || o.discoveryPort;
         break;
@@ -125,6 +130,9 @@ export function parseArgs(argv: string[]): Options {
         }
     }
   }
+  // A room implies you want to find room-mates on the LAN; discovery turns on
+  // by default unless you opted out with --no-discovery.
+  if (o.room && !discoveryOptedOut) o.discovery = true;
   return o;
 }
 
@@ -137,9 +145,10 @@ usage: lchat [options]
   -n, --nick <name>        nickname (default: your username)
   -p, --port <port>        TCP listen port (default: 4040)
       -c, --connect <host[:port]>  connect to a peer at startup (repeatable)
-      --room <name>                room to auto-join after connecting
+      --room <name>                room to auto-join after connecting (enables LAN discovery)
       --pass <pass>                password for the auto-join room
-      --discovery                  enable UDP LAN auto-discovery (default: off)
+      --discovery                  enable UDP LAN auto-discovery (on by default with --room)
+      --no-discovery               disable UDP LAN auto-discovery
       --discovery-port <p> discovery UDP port (default: 4041)
       --no-autoconnect     do not auto-dial peers learned via gossip/discovery
       --history            persist message history to disk (default: memory only)

@@ -73,14 +73,19 @@ export class ChatNode extends EventEmitter {
       this.server!.listen(this.o.port, () => resolve());
     });
     if (this.o.discovery) {
-      this.disco = new Discovery(
-        this.o.discoveryPort,
-        this.o.port,
-        this.fingerprint.slice(0, 12),
-        (host, port) => {
-          if (this.o.autoConnect) void this.connect(host, port);
+      this.disco = new Discovery({
+        port: this.o.discoveryPort,
+        tcpPort: this.o.port,
+        fpShort: this.fingerprint.slice(0, 12),
+        rooms: this.autoJoinRoom ? [this.autoJoinRoom] : [],
+        onPeer: (host, port, _fp, theirRooms) => {
+          if (!this.o.autoConnect) return;
+          // Only auto-dial peers that share a room with us, so --room/--pass
+          // nodes find each other without knowing IPs.
+          if (this.autoJoinRoom && !theirRooms.includes(this.autoJoinRoom)) return;
+          void this.connect(host, port);
         },
-      );
+      });
       this.disco.start();
     }
   }
