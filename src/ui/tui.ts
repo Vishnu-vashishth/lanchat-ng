@@ -6,13 +6,15 @@ import type { ChatMsg, ReceiptMsg } from '../protocol/messages.js';
 import type { History } from '../core/history.js';
 import { notify } from './notify.js';
 import { group } from '../util/base32.js';
+import { ansiSupported } from '../util/platform.js';
 
-const DIM = '\x1b[2m';
-const CYAN = '\x1b[36m';
-const YELLOW = '\x1b[33m';
-const GREEN = '\x1b[32m';
-const RESET = '\x1b[0m';
-const CLEAR_SCREEN = '\x1b[2J\x1b[3J\x1b[H';
+const ANS = ansiSupported();
+const DIM = ANS ? '\x1b[2m' : '';
+const CYAN = ANS ? '\x1b[36m' : '';
+const YELLOW = ANS ? '\x1b[33m' : '';
+const GREEN = ANS ? '\x1b[32m' : '';
+const RESET = ANS ? '\x1b[0m' : '';
+const CLEAR_SCREEN = ANS ? '\x1b[2J\x1b[3J\x1b[H' : '\n'.repeat(40);
 
 export interface UiOptions {
   quiet: boolean;

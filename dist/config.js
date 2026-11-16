@@ -1,8 +1,13 @@
 import os from 'node:os';
 import { join } from 'node:path';
+import { isWindows, windowsDataDir } from './util/platform.js';
 export function defaultDataDir() {
     if (process.env.LCNG_DATA_DIR)
         return process.env.LCNG_DATA_DIR;
+    if (isWindows()) {
+        const appdata = windowsDataDir() ?? join(os.homedir(), 'AppData', 'Roaming');
+        return join(appdata, 'lanchat-ng');
+    }
     const base = process.env.XDG_CONFIG_HOME || join(os.homedir(), '.config');
     return join(base, 'lanchat-ng');
 }

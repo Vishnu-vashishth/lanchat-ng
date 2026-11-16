@@ -4,6 +4,7 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { base32 } from '../util/base32.js';
+import { isWindows } from '../util/platform.js';
 export function fingerprintOf(idPk) {
     // 256-bit digest -> 52 base32 chars. Shown to users to verify first contact.
     return base32(sha256(idPk));
@@ -36,6 +37,6 @@ export function loadOrCreateIdentity(path) {
     }
     const id = createIdentity();
     mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, bytesToHex(id.idSk) + '\n', { mode: 0o600 });
+    writeFileSync(path, bytesToHex(id.idSk) + '\n', isWindows() ? undefined : { mode: 0o600 });
     return id;
 }

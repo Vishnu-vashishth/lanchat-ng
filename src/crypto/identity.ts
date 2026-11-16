@@ -4,6 +4,7 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { base32 } from '../util/base32.js';
+import { isWindows } from '../util/platform.js';
 
 // A node's long-term identity is an Ed25519 keypair. Trust is pinned to the
 // fingerprint (a hash of the public key), never to an IP address — this is the
@@ -50,6 +51,6 @@ export function loadOrCreateIdentity(path: string): Identity {
   }
   const id = createIdentity();
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, bytesToHex(id.idSk) + '\n', { mode: 0o600 });
+  writeFileSync(path, bytesToHex(id.idSk) + '\n', isWindows() ? undefined : { mode: 0o600 });
   return id;
 }
