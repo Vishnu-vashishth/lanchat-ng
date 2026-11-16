@@ -1,5 +1,6 @@
 import * as readline from 'node:readline';
 import { stdin as input, stdout as output } from 'node:process';
+import { spawn } from 'node:child_process';
 import type { ChatNode } from '../core/node.js';
 import type { Peer } from '../core/peer.js';
 import type { ChatMsg, ReceiptMsg } from '../protocol/messages.js';
@@ -265,6 +266,10 @@ export class Tui {
         this.node.stop();
         process.exit(0);
         break;
+      case 'selfupdate':
+        this.sys('updating lanchat-ng from GitHub release…');
+        void selfUpdate();
+        break;
       default:
         this.sys(`unknown command: /${cmd} (try /help)`);
     }
@@ -286,6 +291,7 @@ export class Tui {
       '/burn                 wipe history (memory + disk) and clear screen',
       '/hide  /panic         hide the screen — Ctrl+X, F2 or Ctrl+O (again to resume)',
       '/update <room> <newpass> change a room password',
+      '/selfupdate            update lanchat-ng from GitHub release',
       '/quit                 exit',
     ];
     for (const l of lines) this.print(`${this.DIM}${l}${this.RESET}`);
@@ -334,3 +340,20 @@ export class Tui {
     this.rl.close();
   }
 }
+
+// Self-update: reinstall the global package from the latest GitHub release
+// tarball so users never have to run npm by hand.
+export function selfUpdate(): void {
+  const url =
+    'https://github.com/Vishnu-vashishth/lanchat-ng/releases/download/v0.1.0/lanchat-ng-0.1.0.tgz';
+  const child = spawn('npm', ['install', '-g', url], { stdio: 'inherit' });
+  child.on('error', (err) => {
+    output.write(`self-update failed: ${err.message}\n`);
+  });
+  child.on('close', (code) => {
+    output.write(
+      `self-update ${code === 0 ? 'complete — restart lchat' : 'failed (exit ' + code + ')'}\n`,
+    );
+  });
+}
+

@@ -38,6 +38,7 @@ export function parseArgs(argv) {
         quiet: false,
         notifyBody: false,
         color: true,
+        selfUpdate: false,
         connect: [],
         dataDir: defaultDataDir(),
         room: undefined,
@@ -74,6 +75,9 @@ export function parseArgs(argv) {
                 break;
             case '--no-color':
                 o.color = false;
+                break;
+            case '--self-update':
+                o.selfUpdate = true;
                 break;
             case '--discovery':
                 o.discovery = true;
@@ -139,6 +143,7 @@ usage: lchat [options]
       --data-dir <path>    config/identity directory (default: ~/.config/lanchat-ng)
       --color              use ANSI colors (default: on)
       --no-color           disable ANSI colors
+      --self-update        update lanchat-ng from GitHub release and exit
   -h, --help               show this help
 `);
 }

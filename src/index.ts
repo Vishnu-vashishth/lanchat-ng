@@ -4,7 +4,7 @@ import { loadOrCreateIdentity } from './crypto/identity.js';
 import { TrustStore } from './core/trust.js';
 import { History } from './core/history.js';
 import { ChatNode } from './core/node.js';
-import { Tui } from './ui/tui.js';
+import { Tui, selfUpdate } from './ui/tui.js';
 
 async function main(): Promise<void> {
   const opts = parseArgs(process.argv.slice(2));
@@ -35,6 +35,13 @@ async function main(): Promise<void> {
   }
 
   const tui = new Tui(node, { quiet: opts.quiet, notifyBody: opts.notifyBody, color: opts.color }, history, p.history);
+
+  if (opts.selfUpdate) {
+    tui.close();
+    selfUpdate();
+    return;
+  }
+
   tui.banner(identity.fingerprint, opts.port, { discovery: opts.discovery, history: opts.history });
 
   for (const c of opts.connect) void node.connect(c.host, c.port);
