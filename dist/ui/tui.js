@@ -38,8 +38,12 @@ export class Tui {
         this.GREEN = c('\x1b[32m');
         this.RESET = c('\x1b[0m');
         this.CLEAR_SCREEN = this.colorEnabled ? '\x1b[2J\x1b[3J\x1b[H' : '\n'.repeat(40);
-        this.rl = readline.createInterface({ input, output, prompt: this.prompt() });
-        this.setupCompletion();
+        this.rl = readline.createInterface({
+            input,
+            output,
+            prompt: this.prompt(),
+            completer: (line) => this.complete(line),
+        });
         this.setupKeys();
         this.rl.on('line', (raw) => this.onLine(raw));
         this.rl.on('SIGINT', () => {
@@ -361,14 +365,14 @@ export class Tui {
         'quit',
         'exit',
     ];
-    setupCompletion() {
-        this.rl.setCompleter((line) => {
-            if (!line.startsWith('/'))
-                return [[], line];
-            const token = line.slice(1);
-            const hits = this.commands.filter((c) => c.startsWith(token));
-            return [hits.map((c) => `/${c}`), `/${token}`];
-        });
+    // readline calls this on Tab. It must be supplied as the `completer` option to
+    // createInterface — node's Interface has no setCompleter method.
+    complete(line) {
+        if (!line.startsWith('/'))
+            return [[], line];
+        const token = line.slice(1);
+        const hits = this.commands.filter((c) => c.startsWith(token));
+        return [hits.map((c) => `/${c}`), `/${token}`];
     }
     setupKeys() {
         if (!input.isTTY)
