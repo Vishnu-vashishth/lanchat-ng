@@ -1,6 +1,6 @@
 {
   "name": "lanchat-ng",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Encrypted peer-to-peer LAN chat for internal team communication (new protocol, terminal UI).",
   "type": "module",
   "bin": {
@@ -13,7 +13,7 @@
     "PROTOCOL.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && chmod +x dist/index.js",
     "prepublishOnly": "npm run build",
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts",

@@ -51,11 +51,13 @@ you. Uninstall: `npm uninstall -g lanchat-ng`.
 
 ## Run
 
+Just start it — you land in the default `lobby` room:
+
 ```bash
 lchat --nick alice
 ```
 
-Two people on the same LAN:
+Two people on the same LAN, connecting by address:
 
 ```bash
 # on alice's machine
@@ -65,32 +67,76 @@ lchat --nick alice --port 4040
 lchat --nick bob --connect 192.168.1.23:4040
 ```
 
-Or let them find each other automatically (opt-in, broadcasts on the LAN):
-
-```bash
-lchat --nick alice --discovery
-lchat --nick bob   --discovery
-```
-
 **On first contact, compare fingerprints** out-of-band (read them aloud / over
 another channel). After that the key is pinned and impersonation is rejected.
+
+## Rooms
+
+A **room** is just a shared, named channel. Everyone starts in `lobby`. Rooms
+also drive LAN discovery: peers only ever auto-connect to each other when they
+**share a room**, so a room name + password doubles as a lightweight access gate.
+
+### Start a new room
+
+There's no "create" step — you start a room by joining a name nobody is using
+yet. The first person in sets the password. On the same LAN, the easiest way is
+to launch straight into it (this turns on UDP discovery automatically):
+
+```bash
+# Alice opens room "project-x" with a password, and starts advertising it
+lchat --nick alice --room project-x --pass hunter2
+```
+
+Anyone else on the LAN joins by launching with the **same room and password** —
+no IP address needed; discovery finds Alice and auto-connects:
+
+```bash
+lchat --nick bob --room project-x --pass hunter2
+```
+
+Prefer not to broadcast on the LAN? Add `--no-discovery` and have people connect
+by address (`--connect host:port`) instead; the room/password still gates who is
+admitted.
+
+### Join or switch rooms while running
+
+From inside the chat:
+
+```
+/join project-x hunter2     create/join "project-x" (set its password if new), and switch to it
+/room project-x             alias for /join
+/leave project-x            leave a room
+/rooms                      list the rooms you're in
+/update project-x newpass   change a room's password
+```
+
+Messages you type go to the room you're currently switched to.
 
 ## Commands
 
 ```
-/help                  show help
-/nick <name>           change nickname
-/join <room>           join and switch to a room
-/leave <room>          leave a room
-/rooms                 rooms you are in
-/peers  /names         connected peers
-/connect <host[:port]> connect to a peer directly
-/fp  /me               show your fingerprint
-/history on|off        toggle on-disk history (default: off, memory only)
-/burn                  wipe history (memory + disk) and clear the screen
-/hide  /panic          hide the screen — Ctrl+X, F2 or Ctrl+O (press again to resume)
-/quit                  exit
+/help                   show help
+/nick <name>            change nickname
+/join <room> [pass]     join (and switch to) a room, optionally setting its password
+/room <room>            alias for /join
+/leave <room>           leave a room
+/rooms                  list the rooms you're in
+/update <room> <pass>   change a room's password
+/peers  /names          list connected peers
+/connect <host[:port]>  connect to a peer directly
+/fp  /me                show your fingerprint
+/history on|off         toggle on-disk history (default: off, memory only)
+/color on|off           toggle ANSI colors
+/burn                   wipe history (memory + disk) and clear the screen
+/hide  /panic           hide the screen — Ctrl+X, F2 or Ctrl+O (press again to resume)
+/combo <name>           send a kaomoji combo (/combos lists them)
+/combos                 list all combo names
+/notify                 send a test desktop notification
+/selfupdate             update lanchat-ng from the latest GitHub release
+/quit                   exit
 ```
+
+Tab completes command names, and typing shows peers a live "is typing…" hint.
 
 ## Options
 
@@ -98,13 +144,18 @@ another channel). After that the key is pinned and impersonation is rejected.
 -n, --nick <name>              nickname (default: your username)
 -p, --port <port>              TCP listen port (default: 4040)
 -c, --connect <host[:port]>    connect at startup (repeatable)
-    --discovery                enable UDP LAN auto-discovery (default: off)
+    --room <name>              room to auto-join after connecting (turns on discovery)
+    --pass <pass>              password for the --room you auto-join
+    --discovery                enable UDP LAN auto-discovery (on by default with --room)
+    --no-discovery             disable UDP LAN auto-discovery
     --discovery-port <p>       discovery UDP port (default: 4041)
     --no-autoconnect           don't auto-dial peers learned via gossip/discovery
     --history                  persist history to disk (default: memory only)
 -q, --quiet                    disable desktop notifications
     --notify-body              include message text in notifications (default: hidden)
+    --color / --no-color       ANSI colors (default: on)
     --data-dir <path>          identity/config dir (default: ~/.config/lanchat-ng)
+    --self-update              update from the latest GitHub release and exit
 ```
 
 ## Privacy posture — and a deliberate boundary
