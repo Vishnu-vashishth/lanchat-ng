@@ -1,6 +1,6 @@
 {
   "name": "lanchat-ng",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Encrypted peer-to-peer LAN chat for internal team communication (new protocol, terminal UI).",
   "type": "module",
   "bin": {

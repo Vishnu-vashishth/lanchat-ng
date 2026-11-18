@@ -426,8 +426,10 @@ export class Tui {
 // Self-update: reinstall the global package from the latest GitHub release
 // tarball so users never have to run npm by hand.
 export function selfUpdate(): void {
+  // Always the newest release: GitHub redirects /releases/latest/download/<asset>
+  // to the current release's asset, so this never goes stale between versions.
   const url =
-    'https://github.com/Vishnu-vashishth/lanchat-ng/releases/download/v0.1.0/lanchat-ng-0.1.0.tgz';
+    'https://github.com/Vishnu-vashishth/lanchat-ng/releases/latest/download/lanchat-ng.tgz';
   const child = spawn('npm', ['install', '-g', url], { stdio: 'inherit' });
   child.on('error', (err) => {
     output.write(`self-update failed: ${err.message}\n`);

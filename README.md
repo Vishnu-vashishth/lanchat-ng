@@ -30,7 +30,7 @@ Requires **Node.js ≥ 20**. The CLI ships prebuilt — **no build step, no
 toolchain needed**.
 
 ```bash
-npm install -g https://github.com/Vishnu-vashishth/lanchat-ng/releases/download/v0.1.0/lanchat-ng-0.1.0.tgz
+npm install -g https://github.com/Vishnu-vashishth/lanchat-ng/releases/latest/download/lanchat-ng.tgz
 ```
 
 That gives you an **`lchat`** command (plus a `lanchat-ng` alias). Check it:
@@ -39,9 +39,9 @@ That gives you an **`lchat`** command (plus a `lanchat-ng` alias). Check it:
 lchat --help
 ```
 
-Update: install the newest release URL from the
-[Releases page](https://github.com/Vishnu-vashishth/lanchat-ng/releases).
-Uninstall: `npm uninstall -g lanchat-ng`.
+The `latest/download` URL always resolves to the newest release, so the same
+command installs and updates. From inside the app, `/selfupdate` does this for
+you. Uninstall: `npm uninstall -g lanchat-ng`.
 
 > **Why the release tarball and not `npm i -g git+https://…`?** Some npm
 > versions mishandle git installs (they can link the package to a cache temp
