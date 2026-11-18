@@ -5,3 +5,6 @@ node_modules/
 .data/
 *.identity
 *.pem
+
+# release tarballs are built on demand, never committed
+*.tgz
