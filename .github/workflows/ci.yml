@@ -48,15 +48,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Rebuild dist/
-        run: npm run build
-
       - name: Verify dist/ matches source
-        run: |
-          if [ -n "$(git status --porcelain -- dist)" ]; then
-            echo "::error::Committed dist/ is out of date. Run 'npm run build' and commit the result."
-            git status --porcelain -- dist
-            git --no-pager diff -- dist
-            exit 1
-          fi
-          echo "dist/ is in sync with src/"
+        run: npm run check:dist

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Pre-push gate: run the same checks as CI so a broken or stale build never
+# reaches the remote. Enable once with:  git config core.hooksPath .githooks
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+echo "[pre-push] typecheck…"
+npm run typecheck
+
+echo "[pre-push] test…"
+npm test
+
+echo "[pre-push] build + dist sync…"
+bash scripts/check-dist-sync.sh
+
+echo "[pre-push] ok"

@@ -18,7 +18,9 @@
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts",
     "test": "node --import tsx --test test/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:dist": "bash scripts/check-dist-sync.sh",
+    "verify": "npm run typecheck && npm test && npm run check:dist"
   },
   "engines": {
     "node": ">=20"

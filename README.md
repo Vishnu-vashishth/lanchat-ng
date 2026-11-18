@@ -139,4 +139,20 @@ npm run build               # compile to dist/  (or just use `npm start`, via ts
 npm start -- --nick alice   # run from source without a global install
 npm test                    # crypto handshake, framing, tamper-rejection, 2-node e2e
 npm run typecheck
+npm run verify              # typecheck + test + rebuild and confirm dist/ is committed
 ```
+
+### Keeping the build current
+
+This repo ships a prebuilt `dist/` so a global install needs no build step, so
+`dist/` must always match `src/`. Two guards enforce that:
+
+- **CI** (`.github/workflows/ci.yml`) runs typecheck, tests, and a build on
+  Node 20 and 22 for every push and PR, and fails if committed `dist/` is stale.
+- **Local pre-push hook** (`.githooks/pre-push`) runs the same checks before a
+  push so nothing stale leaves your machine. Enable it once:
+
+  ```bash
+  git config core.hooksPath .githooks
+  ```
+
