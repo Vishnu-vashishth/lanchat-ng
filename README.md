@@ -1,5 +1,7 @@
 # lanchat-ng
 
+[![CI](https://github.com/Vishnu-vashishth/lanchat-ng/actions/workflows/ci.yml/badge.svg)](https://github.com/Vishnu-vashishth/lanchat-ng/actions/workflows/ci.yml)
+
 Encrypted, peer-to-peer **LAN chat** for private internal team communication.
 A clean TypeScript rewrite inspired by [Lanchat](https://git.sr.ht/~youkai/lanchat)'s
 design (UDP discovery + a TCP peer mesh), with a modern protocol and a
