@@ -189,7 +189,7 @@ export class ChatNode extends EventEmitter {
           ts: msg.ts,
         });
         this.emit('chat', peer, msg);
-        this.emitMentions(peer, msg.body);
+        this.emitMentions(peer, msg.body, msg.room);
         peer.send({ t: 'receipt', room: msg.room, ids: [msg.id], kind: 'delivered' });
         break;
       }
@@ -225,7 +225,7 @@ export class ChatNode extends EventEmitter {
     return undefined;
   }
 
-  private emitMentions(from: Peer, body: string): void {
+  private emitMentions(from: Peer, body: string, room: string): void {
     const mentionRe = /@([A-Za-z0-9_-]{1,32})/g;
     let match: RegExpExecArray | null;
     const mentioned = new Set<string>();
@@ -234,7 +234,7 @@ export class ChatNode extends EventEmitter {
       if (!nick || mentioned.has(nick)) continue;
       mentioned.add(nick);
       const peer = this.getPeerByNick(nick);
-      if (peer) this.emit('mention', peer, from, body);
+      if (peer) this.emit('mention', peer, from, body, room);
     }
   }
 

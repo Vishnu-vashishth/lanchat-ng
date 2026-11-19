@@ -118,7 +118,8 @@ export class Tui {
         this.node.on('chat', (peer, msg) => {
             this.print(this.chatLine(msg.room, peer.nick, msg.body, msg.ts, false));
             const focused = msg.room === this.room && !this.hidden;
-            if (!this.opts.quiet && !this.hidden) {
+            // Don't notify for the room the user is already looking at.
+            if (!focused && !this.opts.quiet && !this.hidden) {
                 const now = Date.now();
                 if (now - this.lastNotify > this.NOTIFY_THROTTLE_MS) {
                     this.lastNotify = now;
@@ -144,10 +145,11 @@ export class Tui {
             }
             this.renderHint();
         });
-        this.node.on('mention', (peer, from, body) => {
+        this.node.on('mention', (peer, from, body, room) => {
             const short = body.length > 40 ? body.slice(0, 40) + '…' : body;
             this.sys(`${this.YELLOW}@mention${this.RESET} from ${peer.nick}: ${short}`);
-            if (!this.opts.quiet && !this.hidden) {
+            const focused = room === this.room && !this.hidden;
+            if (!focused && !this.opts.quiet && !this.hidden) {
                 const now = Date.now();
                 if (now - this.lastNotify > this.NOTIFY_THROTTLE_MS) {
                     this.lastNotify = now;
