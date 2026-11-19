@@ -23,8 +23,12 @@ export class Tui {
     RESET;
     CLEAR_SCREEN;
     typingTimer;
+    typingSent = false;
     lastNotify = 0;
     NOTIFY_THROTTLE_MS = 5000;
+    statusShown = false;
+    typers = new Map();
+    TYPING_TTL_MS = 4000;
     constructor(node, opts, history, historyPath) {
         this.node = node;
         this.opts = opts;
@@ -44,6 +48,14 @@ export class Tui {
             prompt: this.prompt(),
             completer: (line) => this.complete(line),
         });
+        // Prepend so this runs before readline's own keypress handler: the status
+        // line must be retracted before readline commits Enter and scrolls past it.
+        if (input.isTTY) {
+            input.prependListener('keypress', (_s, key) => {
+                if (key && (key.name === 'return' || key.name === 'enter'))
+                    this.removeHint();
+            });
+        }
         this.setupKeys();
         this.rl.on('line', (raw) => this.onLine(raw));
         this.rl.on('SIGINT', () => {
@@ -61,10 +73,12 @@ export class Tui {
             this.buffered.push(line);
             return;
         }
+        this.removeHint();
         readline.clearLine(output, 0);
         readline.cursorTo(output, 0);
         output.write(line + '\n');
         this.rl.prompt(true);
+        this.renderHint();
     }
     sys(text) {
         this.print(`${this.DIM}* ${text}${this.RESET}`);
@@ -98,6 +112,7 @@ export class Tui {
             }
         });
         this.node.on('peer-disconnect', (peer) => {
+            this.dropTyper(peer.fp);
             this.sys(`${peer.nick} disconnected`);
         });
         this.node.on('chat', (peer, msg) => {
@@ -114,8 +129,20 @@ export class Tui {
                 this.node.sendRead(msg.room, [msg.id]); // we're looking at it
         });
         this.node.on('typing', (peer, room, on) => {
-            if (on && room === this.room)
-                this.sys(`${peer.nick} is typing…`);
+            if (room !== this.room)
+                return;
+            if (on) {
+                const existing = this.typers.get(peer.fp);
+                if (existing)
+                    clearTimeout(existing.timer);
+                const timer = setTimeout(() => this.dropTyper(peer.fp), this.TYPING_TTL_MS);
+                this.typers.set(peer.fp, { nick: peer.nick, timer });
+            }
+            else {
+                this.dropTyper(peer.fp);
+                return;
+            }
+            this.renderHint();
         });
         this.node.on('mention', (peer, from, body) => {
             const short = body.length > 40 ? body.slice(0, 40) + '…' : body;
@@ -137,7 +164,9 @@ export class Tui {
     onLine(raw) {
         const line = raw.replace(/\s+$/, '');
         if (!line) {
+            this.stopTyping();
             this.rl.prompt();
+            this.renderHint();
             return;
         }
         if (line.startsWith('/')) {
@@ -150,17 +179,106 @@ export class Tui {
             this.stopTyping();
         }
         this.rl.prompt();
+        this.renderHint();
     }
     startTyping() {
-        this.node.setTyping(this.room, true);
-        this.stopTyping();
-        this.typingTimer = setTimeout(() => this.node.setTyping(this.room, false), 1500);
+        // Only announce the idle → typing transition; re-sending "on" for every
+        // keystroke is what used to flood the other side's chat with lines.
+        if (!this.typingSent) {
+            this.node.setTyping(this.room, true);
+            this.typingSent = true;
+        }
+        if (this.typingTimer)
+            clearTimeout(this.typingTimer);
+        this.typingTimer = setTimeout(() => this.stopTyping(), 1500);
     }
     stopTyping() {
         if (this.typingTimer) {
             clearTimeout(this.typingTimer);
             this.typingTimer = undefined;
         }
+        if (this.typingSent) {
+            this.typingSent = false;
+            this.node.setTyping(this.room, false);
+        }
+    }
+    // ---- transient hint/status line (typing + suggestions) ----
+    // Rendered on the single line directly above the prompt and retracted
+    // instead of appended, so it never fills up the scrollback.
+    dropTyper(fp) {
+        const existing = this.typers.get(fp);
+        if (!existing)
+            return;
+        clearTimeout(existing.timer);
+        this.typers.delete(fp);
+        this.renderHint();
+    }
+    clearTypers() {
+        for (const t of this.typers.values())
+            clearTimeout(t.timer);
+        this.typers.clear();
+    }
+    fit(text) {
+        const cols = output.columns || 80;
+        const max = Math.max(10, cols - 2);
+        return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+    }
+    hintText() {
+        const line = this.rl.line ?? '';
+        const cmd = /^\/([a-z]*)$/.exec(line);
+        if (cmd) {
+            const prefix = cmd[1] ?? '';
+            const hits = this.commands.filter((c) => c.startsWith(prefix));
+            return hits.length ? hits.map((c) => `/${c}`).join('  ') : '';
+        }
+        const mention = /(?:^|\s)@([A-Za-z0-9_-]*)$/.exec(line);
+        if (mention) {
+            const prefix = (mention[1] ?? '').toLowerCase();
+            const nicks = [...new Set(this.node.listPeers()
+                    .filter((p) => p.rooms.has(this.room))
+                    .map((p) => p.nick))].filter((n) => n.toLowerCase().startsWith(prefix));
+            return nicks.length ? nicks.map((n) => `@${n}`).join('  ') : '';
+        }
+        const names = [...this.typers.values()].map((t) => t.nick);
+        if (names.length === 1)
+            return `${names[0]} is typing…`;
+        if (names.length > 1)
+            return `${names.length} people are typing…`;
+        return '';
+    }
+    renderHint() {
+        if (this.hidden || !ANS)
+            return;
+        const text = this.hintText();
+        if (!text) {
+            this.removeHint();
+            return;
+        }
+        const line = `${this.DIM}${this.fit(text)}${this.RESET}`;
+        readline.clearLine(output, 0);
+        readline.cursorTo(output, 0);
+        if (this.statusShown) {
+            readline.moveCursor(output, 0, -1);
+            readline.clearLine(output, 0);
+            readline.cursorTo(output, 0);
+        }
+        output.write(line + '\n');
+        this.statusShown = true;
+        this.rl.prompt(true);
+    }
+    removeHint() {
+        if (!this.statusShown)
+            return;
+        this.statusShown = false;
+        if (!ANS)
+            return;
+        readline.clearLine(output, 0);
+        readline.cursorTo(output, 0);
+        readline.moveCursor(output, 0, -1);
+        readline.clearLine(output, 0);
+        readline.cursorTo(output, 0);
+        output.write('\x1b[M'); // delete the retracted line so no blank row is left
+        this.rl.prompt(true);
     }
     command(line) {
         const [cmd, ...rest] = line.slice(1).split(/\s+/);
@@ -185,6 +303,7 @@ export class Tui {
                     const pass = parts[1];
                     if (!r)
                         break;
+                    this.clearTypers();
                     this.node.join(r, pass);
                     this.room = r;
                     this.rl.setPrompt(this.prompt());
@@ -195,6 +314,7 @@ export class Tui {
                 break;
             case 'leave':
                 if (arg) {
+                    this.clearTypers();
                     this.node.leave(arg);
                     if (this.room === arg)
                         this.room = 'lobby';
@@ -368,11 +488,21 @@ export class Tui {
     // readline calls this on Tab. It must be supplied as the `completer` option to
     // createInterface — node's Interface has no setCompleter method.
     complete(line) {
-        if (!line.startsWith('/'))
-            return [[], line];
-        const token = line.slice(1);
-        const hits = this.commands.filter((c) => c.startsWith(token));
-        return [hits.map((c) => `/${c}`), `/${token}`];
+        if (line.startsWith('/')) {
+            const token = line.slice(1);
+            if (/\s/.test(token))
+                return [[], line];
+            const hits = this.commands.filter((c) => c.startsWith(token));
+            return [hits.map((c) => `/${c}`), `/${token}`];
+        }
+        const mention = /(?:^|\s)@([A-Za-z0-9_-]*)$/.exec(line);
+        if (mention) {
+            const prefix = (mention[1] ?? '').toLowerCase();
+            const nicks = [...new Set(this.node.listPeers().map((p) => p.nick))]
+                .filter((n) => n.toLowerCase().startsWith(prefix));
+            return [nicks.map((n) => `@${n}`), `@${mention[1] ?? ''}`];
+        }
+        return [[], line];
     }
     setupKeys() {
         if (!input.isTTY)
@@ -388,14 +518,23 @@ export class Tui {
                 return;
             }
             // Live typing indicator while the user types in the chat line.
-            if (!key.ctrl && key.name && key.name.length === 1 && key.name !== 'tab') {
+            if (!key.ctrl &&
+                key.name &&
+                key.name.length === 1 &&
+                key.name !== 'tab' &&
+                !this.rl.line.startsWith('/')) {
                 this.startTyping();
             }
+            // Refresh the command/mention suggestions after readline has updated
+            // its internal line buffer for this keystroke.
+            if (!key.ctrl)
+                setImmediate(() => this.renderHint());
         });
     }
     toggleHidden() {
         this.hidden = !this.hidden;
         if (this.hidden) {
+            this.statusShown = false;
             output.write(this.CLEAR_SCREEN);
             this.rl.setPrompt('');
             this.rl.prompt();
@@ -408,10 +547,12 @@ export class Tui {
             this.buffered.length = 0;
             this.rl.setPrompt(this.prompt());
             this.rl.prompt();
+            this.renderHint();
         }
     }
     close() {
         this.stopTyping();
+        this.clearTypers();
         if (input.isTTY) {
             try {
                 input.setRawMode(false);
