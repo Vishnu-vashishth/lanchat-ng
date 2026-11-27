@@ -112,10 +112,50 @@ From inside the chat:
 
 Messages you type go to the room you're currently switched to.
 
+## Games
+
+lanchat-ng has a multiplayer arcade built in. Games run over the same
+encrypted peer connections as the chat: no server, no extra ports, nothing
+else to install.
+
+```
+/games              open the arcade: pick a game to host, or join an open table
+/play snake         host a table in the room you're in (snake, blast, paddle, doodle, eights)
+/play               join the open table in this room
+```
+
+Everyone in the room gets an invite in their chat. Players gather in the
+table's lobby, where the host picks the settings and can add bots, then
+presses Enter to start. When a match ends, the host can go straight into a
+rematch.
+
+| Game | Players | What it is |
+|---|---|---|
+| **Snake Arena** | 1–8, bots | Everyone steers a snake in one arena. Eat to grow, make others crash into you, outlast everyone. Crashed snakes burst into food. Ghost and turbo pickups; *Survival* rounds where the walls close in, or a timed *Frenzy* with respawns. Arenas include caves and braided labyrinths generated per round. |
+| **Blast Yard** | 2–8, bots | A bomb-maze battle: blow open crates for power-ups (more bombs, bigger blasts, speed, a shield), catch rivals in cross-shaped blasts, set off chain reactions. Last one standing takes the round; blocks start falling if it drags on. |
+| **Paddle Panic** | 2–4, bots | Every player guards one wall of the court. Miss and you lose a life; lose them all and your wall turns solid. Angle shots off your paddle's edge, grab orbs for a giant paddle or an extra ball, survive as more balls join. |
+| **Doodle Guess** | 2–12 | One player draws a secret word on a shared half-block canvas (colors, brush sizes, fill, undo) while everyone else races to type the answer. Faster guesses score more; near misses get a private nudge. People who walk up mid-game are dealt straight in. |
+| **Crazy Eights** | 2–6, bots | The classic shedding card game with real-looking cards. Eights are wild; optional action cards (2 = draw two, J = skip, A = reverse). Nobody ever receives anyone else's hand. |
+
+Controls are on screen everywhere: arrow keys or WASD to move, Space for the
+main action. **The chat keeps going while you play.** Room messages scroll in
+the side panel and **T** opens a chat line. **Esc** leaves a table, and
+Ctrl+X / F2 still blanks the screen instantly.
+
+How it works: the player who opens a table runs the match on their machine
+and sends each player only what that seat may see. A card game never sends
+your hand to anyone else, and in Doodle Guess only the artist and the people
+who solved it ever receive the word. Players send key presses. The board sizes
+itself to the smallest terminal at the table; 80×24 works, bigger looks
+better. You need a terminal with ANSI support: Windows Terminal, macOS
+Terminal or iTerm2, or any Linux terminal.
+
 ## Commands
 
 ```
 /help                   show help
+/games                  open the arcade (multiplayer games)
+/play <game>            host a game in this room — /play alone joins an open table
 /nick <name>            change nickname
 /join <room> [pass]     join (and switch to) a room, optionally setting its password
 /room <room>            alias for /join
@@ -192,6 +232,21 @@ npm test                    # crypto handshake, framing, tamper-rejection, 2-nod
 npm run typecheck
 npm run verify              # typecheck + test + rebuild and confirm dist/ is committed
 ```
+
+Working on the games (`src/games/`): each game is one file implementing the
+`GameDef` contract in `src/games/types.ts`. Its host-side logic runs the
+simulation, and its client side draws views and maps keys to inputs. Register
+new games in `src/games/registry.ts`. Two helpers let you see a game without
+opening terminals:
+
+```bash
+npx tsx scripts/simulate.ts blast 4     # play a whole bot match headless, print the outcome
+npx tsx scripts/screens.ts out/ 120 36  # drive the real UI on fake terminals, save HTML screenshots
+```
+
+Procedural arenas and seeded randomness use [rot.js](https://github.com/ondras/rot.js)
+(BSD-3-Clause). Rendering is a small built-in screen buffer, so the games
+share the terminal with the chat prompt.
 
 ### Keeping the build current
 

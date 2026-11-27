@@ -64,6 +64,37 @@ After the handshake, each frame's plaintext is a UTF-8 JSON object with a `t` ta
 | `receipt` | `room, ids[], kind` | `delivered` (auto) or `read` (when focused) |
 | `join` / `leave` | `room` | room membership change |
 | `ping` / `pong` | — | liveness |
+| `game` | `room, gid, op, d?` | multiplayer games (see below) |
+
+## Games
+
+Games ride the same encrypted sessions as chat. A **table** (`gid`, up to 32
+hex chars) belongs to a `room`. It is only advertised to, and only joinable
+by, peers admitted to that room. Older clients ignore the `game` type.
+
+The player who opens a table is its **host** and runs the match. Every other
+player sends inputs to the host, and the host sends each member a view made
+for that member's seat. Hidden information, such as other players' cards or
+the word being drawn, is never sent to a seat that may not see it.
+
+| `op` | direction | `d` |
+|---|---|---|
+| `ad` | host → room | `{kind, title, host, n, max, phase}`: the table exists or changed |
+| `close` | host → room + members | `{reason}`: the table is gone |
+| `join` | player → host | `{cols, rows}`: seat me; my terminal size |
+| `leave` | player → host | — |
+| `size` | player → host | `{cols, rows}`: my terminal was resized |
+| `deny` | host → player | `{reason}` |
+| `table` | host → member | roster, settings, `phase` (`lobby`/`playing`/`results`), my seat, results |
+| `frame` | host → member | the current game view for that member's seat |
+| `feed` | host → members | `{text, slot?}`: one event line ("bob was blasted by alice") |
+| `input` | player → host | game-specific input (`{d: 0..3}`, `{a: 'play', c: '8h', s: 'c'}`, …) |
+
+Frames are only sent when a seat's view actually changed. The host advances
+real-time games on a fixed timestep, so speed does not depend on timer
+jitter. Every incoming field is validated and clamped. Text drawn on the game
+screen is stripped of control characters and wide glyphs, so a peer cannot
+inject terminal escape sequences through a nickname or chat line.
 
 ## Mesh
 

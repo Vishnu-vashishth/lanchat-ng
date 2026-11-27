@@ -1,3 +1,5 @@
+import type { GameMsg } from '../games/proto.js';
+
 // Application-layer messages carried over the encrypted channel. Every one of
 // these is encrypted end-to-end; none of it (nicknames, rooms, typing state)
 // is ever visible to a network observer.
@@ -59,7 +61,10 @@ export type Message =
   | JoinMsg
   | LeaveMsg
   | PingMsg
-  | PongMsg;
+  | PongMsg
+  | GameMsg;
+
+export type { GameMsg };
 
 export function isMessage(x: unknown): x is Message {
   return !!x && typeof x === 'object' && typeof (x as { t?: unknown }).t === 'string';

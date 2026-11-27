@@ -201,6 +201,11 @@ export class ChatNode extends EventEmitter {
             case 'ping':
                 peer.send({ t: 'pong' });
                 break;
+            case 'game':
+                // Games validate their own payloads; only room members hear about tables.
+                if (typeof msg.room === 'string' && this.rooms.has(msg.room))
+                    this.emit('game', peer, msg);
+                break;
             default:
                 break;
         }
@@ -235,6 +240,24 @@ export class ChatNode extends EventEmitter {
                 p.send(msg);
         return msg;
     }
+    /** Send a game message to one connected peer. */
+    sendGame(fp, msg) {
+        this.peers.get(fp)?.send(msg);
+    }
+    /** Send a game message to every peer in a room. */
+    broadcastGame(room, msg) {
+        for (const p of this.peers.values())
+            if (p.rooms.has(room))
+                p.send(msg);
+    }
+    /** How many connected peers are in a room. */
+    peersIn(room) {
+        let n = 0;
+        for (const p of this.peers.values())
+            if (p.rooms.has(room))
+                n++;
+        return n;
+    }
     setTyping(room, on) {
         for (const p of this.peers.values())
             if (p.rooms.has(room))
@@ -263,6 +286,7 @@ export class ChatNode extends EventEmitter {
         this.rooms.delete(room);
         for (const p of this.peers.values())
             p.send({ t: 'leave', room });
+        this.emit('self-leave', room);
     }
     setNick(nick) {
         this.nick = nick;

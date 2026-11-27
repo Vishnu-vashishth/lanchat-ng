@@ -9,7 +9,7 @@ import type { Identity } from '../crypto/identity.js';
 import { Peer } from './peer.js';
 import type { TrustStore } from './trust.js';
 import type { History } from './history.js';
-import { DEFAULT_ROOM, PROTOCOL_VERSION, type ChatMsg, type Message } from '../protocol/messages.js';
+import { DEFAULT_ROOM, PROTOCOL_VERSION, type ChatMsg, type GameMsg, type Message } from '../protocol/messages.js';
 import { debug } from '../util/log.js';
 
 export interface NodeOptions {
@@ -213,6 +213,10 @@ export class ChatNode extends EventEmitter {
       case 'ping':
         peer.send({ t: 'pong' });
         break;
+      case 'game':
+        // Games validate their own payloads; only room members hear about tables.
+        if (typeof msg.room === 'string' && this.rooms.has(msg.room)) this.emit('game', peer, msg);
+        break;
       default:
         break;
     }
@@ -247,6 +251,23 @@ export class ChatNode extends EventEmitter {
     return msg;
   }
 
+  /** Send a game message to one connected peer. */
+  sendGame(fp: string, msg: GameMsg): void {
+    this.peers.get(fp)?.send(msg);
+  }
+
+  /** Send a game message to every peer in a room. */
+  broadcastGame(room: string, msg: GameMsg): void {
+    for (const p of this.peers.values()) if (p.rooms.has(room)) p.send(msg);
+  }
+
+  /** How many connected peers are in a room. */
+  peersIn(room: string): number {
+    let n = 0;
+    for (const p of this.peers.values()) if (p.rooms.has(room)) n++;
+    return n;
+  }
+
   setTyping(room: string, on: boolean): void {
     for (const p of this.peers.values()) if (p.rooms.has(room)) p.send({ t: 'typing', room, on });
   }
@@ -270,6 +291,7 @@ export class ChatNode extends EventEmitter {
   leave(room: string): void {
     this.rooms.delete(room);
     for (const p of this.peers.values()) p.send({ t: 'leave', room });
+    this.emit('self-leave', room);
   }
 
   setNick(nick: string): void {
