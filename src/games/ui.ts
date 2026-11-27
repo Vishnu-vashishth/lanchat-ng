@@ -737,7 +737,9 @@ export class GameScreen {
       const yy = 1 + i;
       if (yy >= boxH - 1) return;
       const on = host && i === this.lobbySel;
-      const val = d.choices.find((ch) => ch.v === t.settings[d.key])?.label ?? String(t.settings[d.key] ?? '?');
+      // A host on an older version may not know a setting; it plays it at the default.
+      const cur = t.settings[d.key] ?? d.choices[d.def ?? 0]!.v;
+      const val = d.choices.find((ch) => ch.v === cur)?.label ?? String(cur);
       S.text(2, yy, on ? '▶' : ' ', def.accent, -1, BOLD);
       S.text(4, yy, pad(d.label, labelW), on ? C.bwhite : C.gray, -1, on ? BOLD : 0);
       const v = host ? `◀ ${val} ▶` : val;

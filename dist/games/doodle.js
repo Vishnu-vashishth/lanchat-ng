@@ -1,6 +1,6 @@
 import { BOLD, C, REVERSE, cells, fit, pad, seatColor } from './term/canvas.js';
 import { bigText, bigWidth } from './term/font.js';
-import { EASY, HARD, MEDIUM, words } from './words.js';
+import { ADULT_EASY, ADULT_HARD, ADULT_MEDIUM, EASY, HARD, MEDIUM, accepts, isClose, words } from './words.js';
 // DOODLE GUESS — one player draws a secret word on a shared canvas while
 // everyone else races to guess it. The canvas is drawn with half-block
 // characters, so every terminal cell holds two square pixels; the artist
@@ -15,22 +15,6 @@ const PALETTE = [0, 9, 3, 11, 10, 12, 5, 13, 8]; // keys 1-9
 const ERASER = -1;
 const HEX = '0123456789abcdef';
 const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0], [-1, -1], [1, -1], [-1, 1], [1, 1]];
-function norm(s) {
-    return s
-        .toLowerCase()
-        .replace(/[^a-z0-9 ]+/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-}
-function lev(a, b) {
-    const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...new Array(b.length).fill(0)]);
-    for (let j = 1; j <= b.length; j++)
-        d[0][j] = j;
-    for (let i = 1; i <= a.length; i++)
-        for (let j = 1; j <= b.length; j++)
-            d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
-    return d[a.length][b.length];
-}
 class DoodleGame {
     ctx;
     tickMs = TICK;
@@ -48,6 +32,9 @@ class DoodleGame {
     drawTime;
     hints;
     pool;
+    /** "Mixed in": 18+ words, one of which is offered every turn. */
+    spicy;
+    adult;
     used = new Set();
     phase = 'choose';
     phaseT = 0;
@@ -68,10 +55,13 @@ class DoodleGame {
         this.drawTime = (typeof st.time === 'number' ? st.time : 80) * SEC;
         this.hints = st.hints !== 'off';
         const pack = st.words === 'easy' ? 'easy' : st.words === 'hard' ? 'hard' : 'mixed';
-        const e = words(EASY);
-        const m = words(MEDIUM);
-        const h = words(HARD);
-        this.pool = pack === 'easy' ? { easy: e, medium: e, hard: m } : pack === 'hard' ? { easy: m, medium: h, hard: h } : { easy: e, medium: m, hard: h };
+        const tiers = (e, m, h) => pack === 'easy' ? { easy: e, medium: e, hard: m } : pack === 'hard' ? { easy: m, medium: h, hard: h } : { easy: e, medium: m, hard: h };
+        const adult = st.adult === 'mix' || st.adult === 'only' ? st.adult : 'off';
+        const clean = tiers(words(EASY), words(MEDIUM), words(HARD));
+        const spicy = tiers(words(ADULT_EASY), words(ADULT_MEDIUM), words(ADULT_HARD));
+        this.pool = adult === 'only' ? spicy : clean;
+        this.spicy = adult === 'mix' ? spicy : null;
+        this.adult = adult !== 'off';
         const side = ctx.arena.cols >= 111;
         const availW = (side ? ctx.arena.cols - 31 : ctx.arena.cols) - 2;
         const availRows = ctx.arena.rows - 2 - 4;
@@ -80,6 +70,9 @@ class DoodleGame {
         this.px = new Uint8Array(this.CW * this.CH).fill(PAPER);
         this.players = ctx.players.map((p) => ({ slot: p.slot, nick: p.nick, score: 0, gain: 0, solved: false, solvedIn: 0, guessed: 0, drawPoints: 0, out: false }));
         this.order = this.rng.shuffle(ctx.players.map((p) => p.slot));
+        // Said in the table chat, which every version shows, so nobody is surprised.
+        if (this.adult)
+            ctx.feed(adult === 'only' ? '18+ words only this match' : '18+ words are mixed in this match');
         this.nextTurn();
     }
     // ---- turns ----
@@ -124,7 +117,12 @@ class DoodleGame {
     }
     pickWords() {
         const out = [];
-        for (const list of [this.pool.easy, this.pool.medium, this.pool.hard]) {
+        const lists = [this.pool.easy, this.pool.medium, this.pool.hard];
+        if (this.spicy) {
+            const k = this.rng.int(3); // one of the three choices is an 18+ word
+            lists[k] = [this.spicy.easy, this.spicy.medium, this.spicy.hard][k];
+        }
+        for (const list of lists) {
             const fresh = list.filter((w) => !this.used.has(w) && !out.includes(w));
             const from = fresh.length ? fresh : list.filter((w) => !out.includes(w));
             if (from.length)
@@ -345,14 +343,11 @@ class DoodleGame {
             this.say(text, 0, p.slot, { inner: drawing && (p.solved || p.slot === this.drawer) });
             return;
         }
-        const g = norm(text);
-        const w = norm(this.word);
-        const hit = g === w || g.replace(/ /g, '') === w.replace(/ /g, '') || ` ${g} `.includes(` ${w} `);
-        if (hit) {
+        if (accepts(this.word, text)) {
             this.solve(p);
             return;
         }
-        if (w.length >= 4 && lev(g, w) <= (w.length >= 8 ? 2 : 1))
+        if (isClose(this.word, text))
             this.say(`"${text}" is close!`, 2, p.slot, { to: p.slot });
         this.say(text, 0, p.slot);
     }
@@ -432,6 +427,7 @@ class DoodleGame {
             sc: this.players.map((p) => [p.slot, p.score, p.gain, p.solved ? 1 : 0, p.out ? 1 : 0]),
             r: Math.min(this.round, this.rounds),
             R: this.rounds,
+            ...(this.adult ? { a: 1 } : {}),
         };
     }
     standings() {
@@ -565,7 +561,7 @@ class DoodleClient {
         const v = asView(frame);
         if (!v)
             return '';
-        return `round ${v.r}/${v.R} · ${v.ph === 'choose' ? 'picking' : v.ph === 'draw' ? 'drawing' : 'reveal'} · ${v.t}s`;
+        return `round ${v.r}/${v.R} · ${v.ph === 'choose' ? 'picking' : v.ph === 'draw' ? 'drawing' : 'reveal'} · ${v.t}s${v.a ? ' · 18+' : ''}`;
     }
     scoreboard(frame, ctx) {
         const v = asView(frame);
@@ -738,7 +734,7 @@ export const doodleGame = {
     max: 12,
     bots: false,
     accent: C.bmagenta,
-    about: 'Take turns drawing a secret word on a shared canvas while everyone else types guesses. The quicker you guess, the more you score, and the artist earns points for every right answer. Close guesses get a private nudge and letters are revealed as the clock runs down. People who walk up mid-game are dealt straight in.',
+    about: 'Take turns drawing a secret word on a shared canvas while everyone else types guesses. The quicker you guess, the more you score, and the artist earns points for every right answer. Close guesses get a private nudge and letters are revealed as the clock runs down. People who walk up mid-game are dealt straight in. The host can turn on 18+ words.',
     controls: ['artist: arrows move the brush · Space pen up/down', '        1-9 colors · 0 eraser · +/- size · F fill · U undo', 'guessers: just type and press Enter'],
     art: ['┌────────────────────┐', '│███████▀▀▀▀▀▀▀██████│', '│█████▀  ▄▄▄  ▀██████│', '│████   █   █   █████│', '│█████▄  ▀▀▀  ▄██████│', '└────────────────────┘'],
     settings: [
@@ -746,6 +742,7 @@ export const doodleGame = {
         { key: 'time', label: 'Draw time', choices: [{ v: 80, label: '80 seconds' }, { v: 60, label: '60 seconds' }, { v: 100, label: '100 seconds' }] },
         { key: 'words', label: 'Words', choices: [{ v: 'mixed', label: 'Mixed' }, { v: 'easy', label: 'Easy' }, { v: 'hard', label: 'Hard' }] },
         { key: 'hints', label: 'Letter hints', choices: [{ v: 'on', label: 'On' }, { v: 'off', label: 'Off' }] },
+        { key: 'adult', label: '18+ words', choices: [{ v: 'off', label: 'Off' }, { v: 'mix', label: 'Mixed in' }, { v: 'only', label: 'Only 18+' }] },
     ],
     create: (ctx) => new DoodleGame(ctx),
     client: () => new DoodleClient(),

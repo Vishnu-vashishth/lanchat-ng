@@ -5,6 +5,7 @@ import { TermRenderer } from '../src/games/term/renderer.js';
 import { isGameMsg, readTable } from '../src/games/proto.js';
 import { makeRng } from '../src/games/rng.js';
 import { GAMES, findGame, gameById } from '../src/games/registry.js';
+import { ADULT_EASY, ADULT_HARD, ADULT_MEDIUM, EASY, HARD, MEDIUM, SPELLINGS, accepts, isClose, words } from '../src/games/words.js';
 import type { GameDef, GameLogic, Player, Settings } from '../src/games/types.js';
 
 // Rules and safety checks for the arcade, below the network layer.
@@ -155,6 +156,39 @@ test('blast: bombs set each other off, crates break, a shield saves you once', (
   assert.equal(g.grid[3 * W + 5], 0, 'crate destroyed');
   assert.equal(g.players[1]!.alive, true, 'shield absorbed the blast');
   assert.equal(g.players[1]!.shield, false);
+});
+
+test('doodle: 18+ words appear only when the host turns them on', () => {
+  const adult = new Set([...words(ADULT_EASY), ...words(ADULT_MEDIUM), ...words(ADULT_HARD)]);
+  const picks = (setting: string) => {
+    const { logic, feed } = start('doodle', humans(3), { adult: setting }, 9);
+    const g = inner<{ pickWords(): string[] }>(logic);
+    const turns = Array.from({ length: 60 }, () => g.pickWords());
+    return { turns, feed, tagged: (logic.view(0) as { a?: number }).a === 1 };
+  };
+  const off = picks('off');
+  assert.ok(off.turns.flat().every((w) => !adult.has(w)), 'off: never an 18+ word');
+  assert.ok(!off.tagged && !off.feed.some((l) => l.includes('18+')), 'off: no 18+ tag or notice');
+  const mix = picks('mix');
+  for (const t of mix.turns) assert.equal(t.filter((w) => adult.has(w)).length, 1, 'mixed in: exactly one of the three choices');
+  assert.ok(mix.tagged && mix.feed.some((l) => l.includes('18+')), 'mixed in: tagged and announced to the table');
+  const only = picks('only');
+  assert.ok(only.turns.flat().every((w) => adult.has(w)), 'only 18+: nothing else');
+  // Every word must be letters and spaces, or hints and guess matching break.
+  for (const list of [EASY, MEDIUM, HARD, ADULT_EASY, ADULT_MEDIUM, ADULT_HARD]) for (const w of words(list)) assert.match(w, /^[a-z]+( [a-z]+)*$/, w);
+  // Every extra spelling belongs to a real word (catches typos in the table).
+  for (const w of Object.keys(SPELLINGS)) assert.ok(adult.has(w), `spelling for unknown word "${w}"`);
+});
+
+test('doodle: guesses forgive plurals, spacing and common spellings', () => {
+  const yes: [string, string][] = [
+    ['boobs', 'boob'], ['condom', 'Condoms!'], ['ice cream', 'icecream'], ['sixty nine', '69'], ['gaand', 'gand'],
+    ['suhagraat', 'suhaag raat'], ['gaand phati', 'gand phat gayi'], ['love bite', 'hickey'], ['cat', 'is it a cat?'],
+  ];
+  for (const [word, guess] of yes) assert.ok(accepts(word, guess), `"${guess}" should count for "${word}"`);
+  const no: [string, string][] = [['ass', 'as'], ['penis', 'peanuts'], ['cat', 'catapult'], ['lund', 'lauda']];
+  for (const [word, guess] of no) assert.ok(!accepts(word, guess), `"${guess}" should not count for "${word}"`);
+  assert.ok(isClose('vagina', 'vigina') && isClose('chumma', 'chumna') && !isClose('dick', 'duck duck'));
 });
 
 test('blast: starting corners are dealt every round, not by seat', () => {
