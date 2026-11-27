@@ -161,8 +161,10 @@ test('panic key blanks the game, resize redraws, a vanished host is reported', a
     tb.resize(90, 28);
     await until(() => tb.vt.lines().length <= 28 && tb.vt.text().includes('CRAZY EIGHTS'), 2000, 'redrawn at 90x28');
 
-    // The host's machine vanishes: bob is told, and gets back to the arcade.
-    ua.close();
+    // The host's machine vanishes without a goodbye: only the connection drops
+    // (closing alice's app first would send "the host closed the table" instead,
+    // and which notice wins would then depend on the OS). Bob is told the host
+    // disconnected, and gets back to the arcade.
     alice.stop();
     await until(() => tb.vt.text().includes('TABLE CLOSED') && tb.vt.text().includes('disconnected'), 6000, 'host gone notice');
     tb.type('x');
