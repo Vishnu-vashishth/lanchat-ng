@@ -106,6 +106,24 @@ class BlastGame {
             [W - 2, my],
         ];
     }
+    /**
+     * Which spawn point each player gets this round, in player order. Dealt at
+     * random every round: in a fixed order, the third of three players would
+     * always start in the corner between both rivals. Two players always start
+     * on a diagonal; edge midpoints are used only once the corners are full.
+     */
+    spawnPicks(n) {
+        let picks;
+        if (n <= 2)
+            picks = this.rng.chance(0.5) ? [0, 1] : [2, 3];
+        else if (n <= 4)
+            picks = this.rng.shuffle([0, 1, 2, 3]);
+        else
+            picks = [0, 1, 2, 3, ...this.rng.shuffle([4, 5, 6, 7])];
+        while (picks.length < n)
+            picks.push(picks.length);
+        return this.rng.shuffle(picks.slice(0, n));
+    }
     newRound() {
         const { W, H } = this;
         this.grid.fill(FLOOR);
@@ -124,10 +142,8 @@ class BlastGame {
             }
         const spawns = this.spawns();
         const live = this.players.filter((p) => !p.out);
-        const near = (x, y) => live.some((_, k) => {
-            const s = spawns[k % spawns.length];
-            return Math.abs(s[0] - x) + Math.abs(s[1] - y) <= 2;
-        });
+        const at = this.spawnPicks(live.length).map((k) => spawns[k % spawns.length]);
+        const near = (x, y) => at.some(([sx, sy]) => Math.abs(sx - x) + Math.abs(sy - y) <= 2);
         for (let y = 1; y < H - 1; y++)
             for (let x = 1; x < W - 1; x++) {
                 const i = this.idx(x, y);
@@ -135,7 +151,7 @@ class BlastGame {
                     this.grid[i] = CRATE;
             }
         live.forEach((p, k) => {
-            const [x, y] = spawns[k % spawns.length];
+            const [x, y] = at[k];
             Object.assign(p, { x, y, alive: true, bombs: 1, power: 2, speed: 0, shield: false, invuln: 0, cool: 0, want: -1, wantT: 0, wantBomb: false, deadT: 0, think: this.rng.int(4) });
         });
         for (const p of this.players)

@@ -157,6 +157,27 @@ test('blast: bombs set each other off, crates break, a shield saves you once', (
   assert.equal(g.players[1]!.shield, false);
 });
 
+test('blast: starting corners are dealt every round, not by seat', () => {
+  type G = { players: { x: number; y: number }[]; W: number; H: number; newRound(): void };
+  // Three players: every seat gets every corner over time, so nobody is always
+  // the one starting between both rivals.
+  const g3 = inner<G>(start('blast', humans(3), {}, 5).logic);
+  const seen = [new Set<string>(), new Set<string>(), new Set<string>()];
+  for (let r = 0; r < 60; r++) {
+    g3.newRound();
+    g3.players.forEach((p, k) => seen[k]!.add(`${p.x},${p.y}`));
+  }
+  for (const s of seen) assert.equal(s.size, 4, 'each seat starts in all four corners');
+  // Two players always start in opposite corners.
+  const g2 = inner<G>(start('blast', humans(2), {}, 5).logic);
+  for (let r = 0; r < 20; r++) {
+    g2.newRound();
+    const [a, b] = g2.players;
+    assert.equal(a!.x + b!.x, g2.W - 1);
+    assert.equal(a!.y + b!.y, g2.H - 1);
+  }
+});
+
 test('paddle: a ball past an open goal costs a life; a paddle sends it back', () => {
   const { logic } = start('paddle', humans(2));
   type Side = { pos: number; target: number; len: number; lives: number; alive: boolean };
