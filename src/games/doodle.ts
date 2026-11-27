@@ -468,7 +468,7 @@ class DoodleGame implements GameLogic {
 
   standings(): Standing[] {
     return [...this.players]
-      .sort((a, b) => b.score - a.score)
+      .sort((a, b) => Number(a.out) - Number(b.out) || b.score - a.score)
       .map((p) => ({ slot: p.slot, nick: p.nick, score: p.score, detail: `${p.guessed} guessed · ${p.drawPoints} pts from drawing${p.out ? ' · left' : ''}` }));
   }
 
@@ -487,7 +487,7 @@ function asView(f: unknown): DoodleView | null {
   const v = f as DoodleView;
   if (!v || typeof v !== 'object' || typeof v.px !== 'string' || !Array.isArray(v.cur) || !Array.isArray(v.sc)) return null;
   if (!Number.isInteger(v.cw) || !Number.isInteger(v.ch) || v.cw < 8 || v.ch < 4 || v.cw > 160 || v.ch > 100) return null;
-  return v;
+  return { ...v, sc: v.sc.slice(0, 16), log: Array.isArray(v.log) ? v.log.slice(-20) : [], sv: Array.isArray(v.sv) ? v.sv.slice(0, 16) : [], o: Array.isArray(v.o) ? v.o.slice(0, 3) : [] }; // cap list sizes from the network
 }
 
 function decode(rle: string, n: number): Uint8Array {
@@ -677,7 +677,7 @@ class DoodleClient implements GameClient {
       });
       x += s.text(x, ty, '0', color === ERASER ? C.bwhite : C.gray, -1, color === ERASER ? BOLD | REVERSE : 0);
       x += s.text(x, ty, '░░', C.bwhite) + 2;
-      x += s.text(x, ty, `size ${'■'.repeat(size)}${'□'.repeat(3 - size)}`, C.bwhite) + 2;
+      x += s.text(x, ty, `size ${'■'.repeat(Math.max(1, Math.min(3, size)))}${'□'.repeat(3 - Math.max(1, Math.min(3, size)))}`, C.bwhite) + 2;
       s.text(x, ty, pen ? 'PEN DOWN' : 'pen up', pen ? C.black : C.gray, pen ? C.bgreen : -1, BOLD);
     } else if (v.ph === 'draw') {
       const solved = v.sv.length;
@@ -689,7 +689,7 @@ class DoodleClient implements GameClient {
     if (v.ph === 'reveal') this.revealBox(s, v, rows, ctx);
     const me = ctx.me;
     const close = me !== null ? v.log.slice(-3).filter((e) => e[2] === 2).slice(-1)[0] : undefined;
-    if (close && v.ph === 'draw' && !artist) s.text(1, rows + 1, ` ${fit(close[1], W - 2)} `, C.black, C.byellow, BOLD);
+    if (close && v.ph === 'draw' && !artist) s.text(1, rows + 1, ` ${fit(String(close[1]), W - 2)} `, C.black, C.byellow, BOLD);
   }
 
   private chooser(s: Surface, v: DoodleView, rows: number): void {

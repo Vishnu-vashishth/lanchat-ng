@@ -46,15 +46,19 @@ export class TableHost {
             .sort((a, b) => a.slot - b.slot)
             .map((m) => ({ slot: m.slot, nick: m.nick, bot: m.bot }));
     }
-    freeSlot() {
+    freeSlots() {
         const used = new Set();
         for (const m of this.members.values())
             if (!m.spec)
                 used.add(m.slot);
+        const out = [];
         for (let s = 0; s < this.def.max; s++)
             if (!used.has(s))
-                return s;
-        return -1;
+                out.push(s);
+        return out;
+    }
+    freeSlot() {
+        return this.freeSlots()[0] ?? -1;
     }
     /** Seat a peer: a player while the lobby has room, otherwise a spectator. */
     join(id, nick, size) {
@@ -73,10 +77,15 @@ export class TableHost {
         }
         let slot = this.phase === 'lobby' ? this.freeSlot() : -1;
         // Party games can take a new player mid-match; the rest seat them next match.
+        // A seat someone left mid-match may still be in use by the game (their
+        // score stays on the board), so offer every free seat until one is taken.
         if (this.phase === 'playing' && this.logic?.addPlayer) {
-            const free = this.freeSlot();
-            if (free >= 0 && this.logic.addPlayer({ slot: free, nick: nick.slice(0, 32), bot: false }))
-                slot = free;
+            for (const free of this.freeSlots()) {
+                if (this.logic.addPlayer({ slot: free, nick: nick.slice(0, 32), bot: false })) {
+                    slot = free;
+                    break;
+                }
+            }
         }
         this.members.set(id, { id, slot, nick: nick.slice(0, 32), bot: false, spec: slot < 0, size, lastFrame: '' });
         this.feed(slot < 0 ? `${nick} is watching` : `${nick} joined`);
@@ -94,6 +103,8 @@ export class TableHost {
         if (this.logic && !m.spec)
             this.logic.drop(m.slot);
         this.feed(`${m.nick} left`);
+        if (this.phase !== 'playing')
+            this.promoteSpectators(); // a watcher takes the free seat
         this.changed();
         this.requestFlush();
     }
@@ -150,7 +161,14 @@ export class TableHost {
         this.changed();
     }
     canStart() {
-        return this.phase !== 'playing' && this.playerCount >= this.def.min;
+        if (this.phase === 'playing')
+            return false;
+        // Watchers get seated on start, so they count if there is room for them.
+        let watchers = 0;
+        for (const m of this.members.values())
+            if (m.spec)
+                watchers++;
+        return this.playerCount + Math.min(watchers, this.freeSlots().length) >= this.def.min;
     }
     // ---- match lifecycle ----
     start() {

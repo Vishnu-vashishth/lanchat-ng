@@ -286,6 +286,7 @@ export class ChatNode extends EventEmitter {
         this.rooms.delete(room);
         for (const p of this.peers.values())
             p.send({ t: 'leave', room });
+        this.emit('self-leave', room);
     }
     setNick(nick) {
         this.nick = nick;

@@ -177,7 +177,7 @@ class EightsGame implements GameLogic {
     const card = s.hand[idx];
     if (!card || !this.playable(card)) return false;
     const r = rankOf(card);
-    if (r === '8' && (!suit || !SUITS.includes(suit))) return false;
+    if (r === '8' && (typeof suit !== 'string' || suit.length !== 1 || !SUITS.includes(suit))) return false;
     s.hand.splice(idx, 1);
     this.discard.push(card);
     this.suit = r === '8' ? suit! : suitOf(card);
@@ -353,7 +353,7 @@ class EightsGame implements GameLogic {
 
   standings(): Standing[] {
     return [...this.seats]
-      .sort((a, b) => b.score - a.score || b.won - a.won)
+      .sort((a, b) => Number(a.out) - Number(b.out) || b.score - a.score || b.won - a.won)
       .map((s) => ({ slot: s.slot, nick: s.nick, score: s.score, detail: `${s.won} hand${s.won === 1 ? '' : 's'} won${s.out ? ' · left' : ''}` }));
   }
 
@@ -368,7 +368,7 @@ function asView(f: unknown): EightsView | null {
   const v = f as EightsView;
   if (!v || typeof v !== 'object' || !Array.isArray(v.me) || !Array.isArray(v.seats) || typeof v.top !== 'string') return null;
   if (v.me.length > 120 || !v.me.every((c) => typeof c === 'string' && c.length === 2)) return null;
-  return v;
+  return { ...v, seats: v.seats.slice(0, 16), ok: Array.isArray(v.ok) ? v.ok.slice(0, 120) : [], log: Array.isArray(v.log) ? v.log.slice(-12) : [] }; // cap list sizes from the network
 }
 
 const red = (c: string) => suitOf(c) === 'h' || suitOf(c) === 'd';
@@ -390,6 +390,7 @@ class EightsClient implements GameClient {
   key(k: Key, frame: unknown, ctx: ViewCtx): unknown {
     const v = asView(frame);
     if (!v || ctx.me === null || k.ctrl || k.meta) return undefined;
+    this.dropStalePick(v, ctx);
     const n = v.me.length;
     if (this.sel >= n) this.sel = Math.max(0, n - 1);
     if (this.picking) {
@@ -472,9 +473,15 @@ class EightsClient implements GameClient {
     return lines;
   }
 
+  /** The suit picker only makes sense while it is still our move with that eight. */
+  private dropStalePick(v: EightsView, ctx: ViewCtx): void {
+    if (this.picking && (v.turn !== ctx.me || v.ph !== 'play' || !v.me.includes(this.picking))) this.picking = null;
+  }
+
   draw(s: Surface, frame: unknown, ctx: ViewCtx): void {
     const v = asView(frame);
     if (!v) return;
+    this.dropStalePick(v, ctx);
     const W = s.w;
     const blink = Math.floor(ctx.now / 400) % 2 === 0;
     // opponents across the top

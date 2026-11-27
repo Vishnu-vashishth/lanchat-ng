@@ -43,6 +43,7 @@ export class GameHub extends EventEmitter {
     super();
     node.on('game', (peer: HubPeer, msg: unknown) => this.onMessage(peer, msg));
     node.on('peer-disconnect', (peer: HubPeer) => this.onGone(peer));
+    node.on('self-leave', (room: string) => this.forgetRoom(room));
     node.on('peer-connect', (peer: HubPeer) => {
       if (!this.hosted) return;
       this.hosted.rename(peer.fp, peer.nick);
@@ -57,6 +58,12 @@ export class GameHub extends EventEmitter {
       for (const [gid, ad] of this.ads) if (ad.hostId === peer.fp && ad.room === room) this.ads.delete(gid);
       this.emit('change');
     });
+  }
+
+  /** We left a room: forget its tables (its close messages no longer reach us). */
+  forgetRoom(room: string): void {
+    for (const [gid, ad] of this.ads) if (ad.room === room) this.ads.delete(gid);
+    this.emit('change');
   }
 
   /** Open tables in rooms we are in, newest first. */
@@ -97,7 +104,12 @@ export class GameHub extends EventEmitter {
       case 'input':
       case 'size': {
         const h = this.hosted;
-        if (!h || h.gid !== msg.gid || h.room !== msg.room) return;
+        if (!h || h.gid !== msg.gid || h.room !== msg.room) {
+          // Someone is asking for a table we no longer run: say so, so they
+          // see "closed" at once instead of waiting for an answer.
+          if (msg.op === 'join') this.node.sendGame(peer.fp, { t: 'game', room: msg.room, gid: msg.gid, op: 'close', d: { reason: 'that table is gone' } });
+          return;
+        }
         if (msg.op === 'join' && !peer.rooms.has(h.room)) {
           this.node.sendGame(peer.fp, { t: 'game', room: h.room, gid: h.gid, op: 'deny', d: { reason: `join #${h.room} first` } });
           return;

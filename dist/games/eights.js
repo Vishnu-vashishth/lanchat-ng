@@ -138,7 +138,7 @@ class EightsGame {
         if (!card || !this.playable(card))
             return false;
         const r = rankOf(card);
-        if (r === '8' && (!suit || !SUITS.includes(suit)))
+        if (r === '8' && (typeof suit !== 'string' || suit.length !== 1 || !SUITS.includes(suit)))
             return false;
         s.hand.splice(idx, 1);
         this.discard.push(card);
@@ -330,7 +330,7 @@ class EightsGame {
     }
     standings() {
         return [...this.seats]
-            .sort((a, b) => b.score - a.score || b.won - a.won)
+            .sort((a, b) => Number(a.out) - Number(b.out) || b.score - a.score || b.won - a.won)
             .map((s) => ({ slot: s.slot, nick: s.nick, score: s.score, detail: `${s.won} hand${s.won === 1 ? '' : 's'} won${s.out ? ' · left' : ''}` }));
     }
     summary() {
@@ -344,7 +344,7 @@ function asView(f) {
         return null;
     if (v.me.length > 120 || !v.me.every((c) => typeof c === 'string' && c.length === 2))
         return null;
-    return v;
+    return { ...v, seats: v.seats.slice(0, 16), ok: Array.isArray(v.ok) ? v.ok.slice(0, 120) : [], log: Array.isArray(v.log) ? v.log.slice(-12) : [] }; // cap list sizes from the network
 }
 const red = (c) => suitOf(c) === 'h' || suitOf(c) === 'd';
 class EightsClient {
@@ -363,6 +363,7 @@ class EightsClient {
         const v = asView(frame);
         if (!v || ctx.me === null || k.ctrl || k.meta)
             return undefined;
+        this.dropStalePick(v, ctx);
         const n = v.me.length;
         if (this.sel >= n)
             this.sel = Math.max(0, n - 1);
@@ -458,10 +459,16 @@ class EightsClient {
             lines.push({ text: l, fg: C.gray });
         return lines;
     }
+    /** The suit picker only makes sense while it is still our move with that eight. */
+    dropStalePick(v, ctx) {
+        if (this.picking && (v.turn !== ctx.me || v.ph !== 'play' || !v.me.includes(this.picking)))
+            this.picking = null;
+    }
     draw(s, frame, ctx) {
         const v = asView(frame);
         if (!v)
             return;
+        this.dropStalePick(v, ctx);
         const W = s.w;
         const blink = Math.floor(ctx.now / 400) % 2 === 0;
         // opponents across the top

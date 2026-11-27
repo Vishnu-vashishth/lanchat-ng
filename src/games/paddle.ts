@@ -421,7 +421,7 @@ function asView(f: unknown): PaddleView | null {
   const v = f as PaddleView;
   if (!v || typeof v !== 'object' || !Array.isArray(v.s) || !Array.isArray(v.b)) return null;
   if (!Number.isInteger(v.W) || !Number.isInteger(v.H) || v.W < 20 || v.H < 8 || v.W > 200 || v.H > 100) return null;
-  return v;
+  return { ...v, s: v.s.slice(0, 4), b: v.b.slice(0, 32) }; // cap list sizes from the network
 }
 
 const SIDE_NAMES = ['left', 'right', 'top', 'bottom'];
@@ -469,7 +469,7 @@ class PaddleClient implements GameClient {
       if (slot < 0) continue;
       lines.push({
         slot,
-        text: `${pad(fit(ctx.nick(slot), 10), 10)} ${alive ? '♥'.repeat(Math.min(lives, 10)) : out ? 'left' : 'OUT'}`,
+        text: `${pad(fit(ctx.nick(slot), 10), 10)} ${alive ? '♥'.repeat(Math.max(0, Math.min(lives, 10))) : out ? 'left' : 'OUT'}`,
         fg: slot === ctx.me ? C.bwhite : alive ? -1 : C.gray,
         at: slot === ctx.me ? BOLD : 0,
       });
@@ -528,8 +528,8 @@ class PaddleClient implements GameClient {
         if (mine && v.ph === 'count') s.text(side === 0 ? x + 2 : x - 5, Math.floor((pos + len / 2) / 2), side === 0 ? '◄YOU' : 'YOU►', C.black, C.bwhite, BOLD);
       } else {
         const y = side === 2 ? 1 : H - 2;
-        const x0 = Math.round(pos);
-        const n = Math.max(1, Math.round(len));
+        const x0 = Math.max(0, Math.min(W, Math.round(pos)));
+        const n = Math.max(1, Math.min(W - x0, Math.round(len)));
         for (let i = 0; i < n; i++) s.put(x0 + i, y, side === 2 ? '▀' : '▄', grow && blink ? C.bwhite : col, -1, at);
         if (mine && v.ph === 'count') s.text(x0 + (n >> 1) - 2, side === 2 ? y + 1 : y - 1, 'YOU', C.black, C.bwhite, BOLD);
       }
@@ -561,8 +561,9 @@ class PaddleClient implements GameClient {
 
   /** Vertical paddle at half-row resolution. */
   private vbar(s: Surface, x: number, pos: number, len: number, col: number, at: number): void {
-    const a = Math.round(pos);
-    const b = Math.round(pos + len);
+    // Clamp to the court: a frame's numbers are not trusted to be sane.
+    const a = Math.max(0, Math.min(s.h * 2, Math.round(pos)));
+    const b = Math.max(a, Math.min(s.h * 2, Math.round(pos + len)));
     for (let u = a; u < b; u++) {
       const row = u >> 1;
       const top = u % 2 === 0;

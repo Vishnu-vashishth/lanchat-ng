@@ -82,6 +82,7 @@ class SnakeGame implements GameLogic {
   private ringAt = 0;
   private warning = false;
   private banner = '';
+  private ending = false;
   private lastPower = 0;
   private readonly botNoise: number;
   private readonly botSlip: number;
@@ -391,7 +392,7 @@ class SnakeGame implements GameLogic {
     }
     if (this.phase === 'round') {
       if (--this.phaseT <= 0) {
-        if (this.round >= this.rounds) this.finish();
+        if (this.ending || this.round >= this.rounds) this.finish();
         else {
           this.round++;
           this.newRound();
@@ -421,11 +422,18 @@ class SnakeGame implements GameLogic {
     if (movers.length) this.move(movers);
     this.fillItems();
 
+    const live = this.snakes.filter((s) => !s.out);
+    // A multiplayer match where everyone else left: the one still here takes it.
+    if (this.snakes.length >= 2 && live.length < 2) {
+      this.ending = true;
+      if (this.mode === 'frenzy') this.finish();
+      else this.endRound(live[0]?.alive ? live[0] : undefined);
+      return;
+    }
     if (this.mode === 'frenzy') {
       if (--this.timeLeft <= 0) this.finish();
       return;
     }
-    const live = this.snakes.filter((s) => !s.out);
     const alive = live.filter((s) => s.alive);
     if ((live.length >= 2 && alive.length <= 1) || (live.length < 2 && alive.length === 0)) this.endRound(alive[0]);
     // Hard stop for a round that outlasts the squeeze: the longest snake takes it.
@@ -761,7 +769,7 @@ class SnakeGame implements GameLogic {
 
   standings(): Standing[] {
     return [...this.snakes]
-      .sort((a, b) => b.score - a.score || b.wins - a.wins || b.kills - a.kills || b.best - a.best)
+      .sort((a, b) => Number(a.out) - Number(b.out) || b.score - a.score || b.wins - a.wins || b.kills - a.kills || b.best - a.best)
       .map((s) => ({
         slot: s.slot,
         nick: s.nick,
@@ -788,7 +796,7 @@ function asView(f: unknown): SnakeView | null {
   const v = f as SnakeView;
   if (!v || typeof v !== 'object' || typeof v.g !== 'string' || !Array.isArray(v.s)) return null;
   if (!Number.isInteger(v.w) || !Number.isInteger(v.h) || v.w < 4 || v.h < 4 || v.w > 200 || v.h > 200 || v.g.length !== v.w * v.h) return null;
-  return v;
+  return { ...v, s: v.s.slice(0, 16) }; // cap list sizes from the network
 }
 
 const MONO_BODY = ['##', '@@', '%%', '&&', '$$', '**', '++', '=='];
@@ -831,7 +839,7 @@ class SnakeClient implements GameClient {
       const [slot = 0, alive = 0, len = 0, score = 0, , , , , resp = 0, wins = 0, , out = 0] = r;
       const state = out ? 'left' : alive ? `len ${len}` : resp ? `back ${resp}s` : 'out';
       const name = fit(ctx.nick(slot), 10);
-      const mark = v.mode === 'survival' && wins ? ' ' + '♦'.repeat(Math.min(wins, 5)) : '';
+      const mark = v.mode === 'survival' && wins ? ' ' + '♦'.repeat(Math.max(0, Math.min(wins, 5))) : '';
       return {
         slot,
         text: `${pad(name, 10)} ${pad(String(score), 3, 'right')} ${state}${mark}`,

@@ -45,6 +45,7 @@ class BlastGame {
     spiral = [];
     hurryIdx = 0;
     banner = '';
+    ending = false;
     constructor(ctx) {
         this.ctx = ctx;
         const st = ctx.settings;
@@ -206,7 +207,7 @@ class BlastGame {
         }
         if (this.phase === 'round') {
             if (--this.phaseT <= 0) {
-                if (this.players.some((p) => p.wins >= this.target) || this.round >= this.target * 3) {
+                if (this.ending || this.players.some((p) => p.wins >= this.target) || this.round >= this.target * 3) {
                     this.phase = 'over';
                     this.done = true;
                 }
@@ -281,8 +282,15 @@ class BlastGame {
             this.hurry();
         const live = this.players.filter((p) => !p.out);
         const alive = live.filter((p) => p.alive);
-        if (alive.length <= (live.length >= 2 ? 1 : 0))
+        if (live.length < 2) {
+            // Everyone else left: whoever is still here takes it, and the match ends.
+            this.ending = true;
+            this.endRound(live[0]);
+        }
+        else if (alive.length <= 1)
             this.endRound(alive[0]);
+        else if (this.roundT > this.limit + 75 * SEC)
+            this.endRound(undefined); // outlasted the squeeze: a draw
     }
     walkable(x, y) {
         if (x < 0 || y < 0 || x >= this.W || y >= this.H)
@@ -624,7 +632,7 @@ class BlastGame {
     }
     standings() {
         return [...this.players]
-            .sort((a, b) => b.wins - a.wins || b.kills - a.kills || a.deaths - b.deaths)
+            .sort((a, b) => Number(a.out) - Number(b.out) || b.wins - a.wins || b.kills - a.kills || a.deaths - b.deaths)
             .map((p) => ({
             slot: p.slot,
             nick: p.nick,
@@ -652,7 +660,7 @@ function asView(f) {
         return null;
     if (v.g.length !== v.w * v.h || v.f.length !== v.w * v.h || !Array.isArray(v.b) || !Array.isArray(v.p))
         return null;
-    return v;
+    return { ...v, b: v.b.slice(0, 256), p: v.p.slice(0, 16) }; // cap list sizes from the network
 }
 const ITEM = {
     B: { top: ' +1 ', label: 'BOMB', bg: C.blue, short: 'b+' },
@@ -707,12 +715,12 @@ class BlastClient {
             const name = fit(ctx.nick(slot), 11);
             lines.push({
                 slot,
-                text: `${pad(name, 11)} ${'♦'.repeat(Math.min(wins, 6)) || '·'}${out ? ' left' : alive ? '' : ' ×'}`,
+                text: `${pad(name, 11)} ${'♦'.repeat(Math.max(0, Math.min(wins, 6))) || '·'}${out ? ' left' : alive ? '' : ' ×'}`,
                 fg: slot === ctx.me ? C.bwhite : alive ? -1 : C.gray,
                 at: slot === ctx.me ? BOLD : 0,
             });
             if (alive)
-                lines.push({ text: `   bombs ${bombs} · fire ${power}${speed ? ` · ${'»'.repeat(speed)}` : ''}${shield ? ' · ()' : ''}`, fg: C.gray });
+                lines.push({ text: `   bombs ${bombs} · fire ${power}${speed ? ` · ${'»'.repeat(Math.max(0, Math.min(speed, 3)))}` : ''}${shield ? ' · ()' : ''}`, fg: C.gray });
         }
         lines.push({ text: '' });
         lines.push({ text: 'crates hide power-ups:', fg: C.gray });

@@ -14,6 +14,7 @@ export class GameScreen {
     canvas = new Canvas(1, 1);
     view = 'arcade';
     sel = 0;
+    selKey = null;
     lobbySel = 0;
     log = [];
     typing = null;
@@ -148,6 +149,16 @@ export class GameScreen {
     key(k) {
         if (this.hidden || !this.active)
             return;
+        try {
+            this.handleKey(k);
+        }
+        catch {
+            // A malformed frame from a (possibly hostile) host must not take the chat down.
+            this.toast('ignored a bad update from the host');
+        }
+        this.render();
+    }
+    handleKey(k) {
         if (this.dialog) {
             const opt = this.dialog.options.find((o) => o.key === k.name);
             if (opt) {
@@ -156,19 +167,16 @@ export class GameScreen {
             }
             else if (k.name === 'escape' || k.name === 'n')
                 this.dialog = null;
-            this.render();
             return;
         }
         if (this.typing !== null) {
             this.typeKey(k);
-            this.render();
             return;
         }
         if (this.view === 'arcade')
             this.arcadeKey(k);
         else
             this.tableKey(k);
-        this.render();
     }
     typeKey(k) {
         if (k.name === 'escape')
@@ -194,14 +202,33 @@ export class GameScreen {
         const tables = this.hub.tables().map((ad) => ({ kind: 'table', ad }));
         return [...tables, ...GAMES.map((def) => ({ kind: 'game', def }))];
     }
+    static entryKey(e) {
+        return e.kind === 'table' ? `table:${e.ad.gid}` : `game:${e.def.id}`;
+    }
+    /** Index of the highlighted entry. The highlight follows the entry itself, so a
+     *  table appearing or closing never moves it onto something else. */
+    selIndex(list) {
+        const at = this.selKey ? list.findIndex((e) => GameScreen.entryKey(e) === this.selKey) : -1;
+        this.sel = at >= 0 ? at : Math.max(0, Math.min(this.sel, list.length - 1));
+        const e = list[this.sel];
+        this.selKey = e ? GameScreen.entryKey(e) : null;
+        return this.sel;
+    }
     arcadeKey(k) {
         const list = this.entries();
+        const n = Math.max(1, list.length);
+        const cur = this.selIndex(list);
+        const move = (i) => {
+            const e = list[i];
+            this.sel = i;
+            this.selKey = e ? GameScreen.entryKey(e) : null;
+        };
         if (k.name === 'up' || k.name === 'w' || k.name === 'k')
-            this.sel = (this.sel - 1 + list.length) % list.length;
+            move((cur - 1 + n) % n);
         else if (k.name === 'down' || k.name === 's' || k.name === 'j')
-            this.sel = (this.sel + 1) % list.length;
+            move((cur + 1) % n);
         else if (k.name === 'enter' || k.name === 'space') {
-            const e = list[Math.min(this.sel, list.length - 1)];
+            const e = list[cur];
             if (!e)
                 return;
             if (e.kind === 'table')
@@ -226,11 +253,12 @@ export class GameScreen {
             this.view = 'arcade';
             return;
         }
-        if (k.name === 'escape' || (k.ctrl && k.name === 'c')) {
+        const t = c.table;
+        const leave = k.name === 'escape' || (k.ctrl && k.name === 'c');
+        if (leave && (k.ctrl || !t || t.phase !== 'playing' || c.frame === null)) {
             this.confirmLeave(c);
             return;
         }
-        const t = c.table;
         if (!t)
             return;
         if (t.phase === 'playing' && c.frame !== null) {
@@ -254,13 +282,16 @@ export class GameScreen {
                     return;
                 }
             }
+            // The game gets first refusal (Esc closes its own pickers); otherwise Esc leaves.
             const out = this.safe(() => c.game.key(k, c.frame, ctx), undefined);
             if (out !== undefined) {
                 if (out !== null)
                     c.input(out);
                 return;
             }
-            if (k.name === 't' || k.name === 'tab')
+            if (leave)
+                this.confirmLeave(c);
+            else if (k.name === 't' || k.name === 'tab')
                 this.typing = '';
             return;
         }
@@ -363,10 +394,20 @@ export class GameScreen {
             s.center(Math.floor(rows / 2), `make this window at least ${MIN_W}x${MIN_H}`, C.byellow);
             s.center(Math.floor(rows / 2) + 1, `(now ${cols}x${rows}) · Esc to go back`, C.gray);
         }
-        else if (this.view === 'arcade')
-            this.drawArcade(s);
-        else
-            this.drawTable(s);
+        else {
+            try {
+                if (this.view === 'arcade')
+                    this.drawArcade(s);
+                else
+                    this.drawTable(s);
+            }
+            catch {
+                // Never let a malformed frame (or a game bug) escape a render timer.
+                s.clear();
+                s.center(Math.floor(rows / 2) - 1, 'the host sent an update this screen could not draw', C.byellow);
+                s.center(Math.floor(rows / 2), 'Esc to leave the table', C.gray);
+            }
+        }
         if (this.dialog)
             this.drawDialog(s, this.dialog);
         if (this.toastMsg) {
@@ -434,8 +475,7 @@ export class GameScreen {
         const people = this.env.peopleIn(room);
         s.center(3, `multiplayer terminal games over your encrypted chat · #${room} · ${people} other${people === 1 ? '' : 's'} here`, C.gray);
         const list = this.entries();
-        if (this.sel >= list.length)
-            this.sel = Math.max(0, list.length - 1);
+        this.selIndex(list);
         const top = 5;
         const bottom = H - 2;
         const leftW = Math.min(44, Math.max(34, Math.floor(W * 0.42)));
@@ -607,7 +647,7 @@ export class GameScreen {
                 I.text(0, y, this.env.color ? '██' : `${l.slot + 1}:`, seatColor(l.slot));
                 x = 3;
             }
-            I.text(x, y, fit(l.text, I.w - x), l.fg ?? -1, -1, l.at ?? 0);
+            I.text(x, y, fit(String(l.text ?? ''), I.w - x), typeof l.fg === 'number' ? l.fg : -1, -1, typeof l.at === 'number' ? l.at : 0);
             y++;
         }
         y++;
